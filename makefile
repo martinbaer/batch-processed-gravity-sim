@@ -6,11 +6,12 @@ NVFLAGS?=-O2 --gpu-architecture=sm_35 -Wno-deprecated-gpu-targets
 
 TARGETS = pp_serial
 
-# rules
-all: $(TARGETS)
+default : all
 
-clean:
-	rm -f $(TARGETS) *.o
+# dependancies
+$(TARGETS): parse_constants.o parse_constants.h
+
+parse_constants.o: parse_constants.h
 
 # wildcard rules
 %.o: %.cpp
@@ -20,12 +21,12 @@ clean:
 	$(CXX) $(CXXFLAGS) $(filter %.o %.cpp, $^) -o $@
 
 
-# dependancies
-$(TARGETS): parse_contants.o parse_contants.h
 
-parse_contants_file.o: parse_contants.h
+# rules
+all: $(TARGETS)
 
-
+clean:
+	rm -f $(TARGETS) *.o
 
 # # all targets
 # TARGETS = Assignment_serial Assignment_openmp Assignment_mpi Assignment_cuda Assignment_avx
