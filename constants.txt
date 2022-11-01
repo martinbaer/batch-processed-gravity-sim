@@ -1,0 +1,5 @@
+num_particles=500
+box_size=10
+num_steps=1000
+delta_t=0.1
+init_pos=random
