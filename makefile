@@ -9,9 +9,9 @@ TARGETS = pp_serial
 default : all
 
 # dependancies
-$(TARGETS): parse_constants.o parse_constants.h
+$(TARGETS): helpers.o helpers.h
 
-parse_constants.o: parse_constants.h
+helpers.o: helpers.h
 
 # wildcard rules
 %.o: %.cpp

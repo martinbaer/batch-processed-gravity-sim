@@ -1,15 +1,7 @@
 /**
  * @file parse_constants_file.cpp
  * @author Martin Baer
- * @brief 
- * To parse the a file containing constants for the simulation.
- * 
- * Constants file format:
- * num_particles=[int]
- * box_size=[int]
- * num_steps=[int]
- * delta_t=[double]
- * init_pos=[string] (text file name containing initial positions seperated by commas and newlines)
+ * @brief Contains globally useful functions for the simulations
  * @version 0.1
  * @date 2022-11-01
  * 
@@ -21,12 +13,35 @@
 #include <fstream>
 #include <string>
 
-#include "parse_constants.h"
+#include "helpers.h"
+
+/**
+ * @brief 
+ * Write the particle positions to the binary output file.
+ * @param output_file given binary output file
+ * @param positions vector of particle positions
+ */
+void write_positions(std::ofstream &output_file, PhysicalVector2D &positions, Constants constants)
+{
+	output_file.write((char *)&(positions.x)[0], constants.num_particles * sizeof(double));
+	output_file.write((char *)&(positions.y)[0], constants.num_particles * sizeof(double));
+}
 
 /**
  * @brief 
  * Parses the constants file and stores the constants in the constants struct.
  * Generates random initial positions for the particles if none are given.
+ * 
+ * Constants file format:
+ * num_particles=[int]
+ * box_size=[int]
+ * num_steps=[int]
+ * write_interval=[int]
+ * delta_t=[double]
+ * softening=[double]
+ * gravity=[double]
+ * particle_mass=[double]
+ * init_pos=[string] (text file name containing initial positions seperated by commas and newlines)
  * @param filename name of file to parse
  * @param constants struct to store constants in
  */
@@ -78,6 +93,34 @@ void parse_constants(std::string filename, Constants &constants)
 			// Convert the value to a double
 			constants.delta_t = std::stod(value);
 		}
+		else if (line.find("softening") != std::string::npos)
+		{
+			// Get the value of the constant
+			std::string value = line.substr(line.find('=') + 1);
+			// Convert the value to a double
+			constants.softening = std::stod(value);
+		}
+		else if (line.find("gravity") != std::string::npos)
+		{
+			// Get the value of the constant
+			std::string value = line.substr(line.find('=') + 1);
+			// Convert the value to a double
+			constants.gravity = std::stod(value);
+		}
+		else if (line.find("particle_mass") != std::string::npos)
+		{
+			// Get the value of the constant
+			std::string value = line.substr(line.find('=') + 1);
+			// Convert the value to a double
+			constants.particle_mass = std::stod(value);
+		}
+		else if (line.find("write_interval") != std::string::npos)
+		{
+			// Get the value of the constant
+			std::string value = line.substr(line.find('=') + 1);
+			// Convert the value to a double
+			constants.write_interval = std::stoi(value);
+		}
 		else if (line.find("init_pos") != std::string::npos)
 		{
 			// Get the value of the constant
@@ -99,8 +142,9 @@ void parse_constants(std::string filename, Constants &constants)
 					std::cout << "Error opening file " << value << std::endl;
 					exit(1);
 				}
-				// Initialize the vector
-				constants.init_pos = std::vector<Point2D>(constants.num_particles);
+				// Initialize the vectors
+				constants.init_pos.x = std::vector<double>(constants.num_particles);
+				constants.init_pos.y = std::vector<double>(constants.num_particles);
 				// Read the file
 				std::string init_pos_line;
 				while (std::getline(init_pos_file, init_pos_line))
@@ -111,12 +155,9 @@ void parse_constants(std::string filename, Constants &constants)
 					// Convert the values to doubles
 					double x_d = std::stod(x);
 					double y_d = std::stod(y);
-					// Create a point
-					Point2D point;
-					point.x = x_d;
-					point.y = y_d;
-					// Add the point to the vector
-					constants.init_pos.push_back(point);
+					// Add the values to the vectors
+					constants.init_pos.x.push_back(x_d);
+					constants.init_pos.y.push_back(y_d);
 				}
 			}
 		}
@@ -125,12 +166,13 @@ void parse_constants(std::string filename, Constants &constants)
 
 void gen_random_points(Constants &constants)
 {
-	// Initialise vector
-	constants.init_pos = std::vector<Point2D>(constants.num_particles);
+	// Initialise vectors
+	constants.init_pos.x = std::vector<double>(constants.num_particles);
+	constants.init_pos.y = std::vector<double>(constants.num_particles);
 	// Generate random points
 	for (int i = 0; i < constants.num_particles; i++)
 	{
-		constants.init_pos[i].x = rand() % constants.box_size;
-		constants.init_pos[i].y = rand() % constants.box_size;
+		constants.init_pos.x[i] = rand() % constants.box_size;
+		constants.init_pos.y[i] = rand() % constants.box_size;
 	}
 }
