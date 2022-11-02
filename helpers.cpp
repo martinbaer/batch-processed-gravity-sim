@@ -12,8 +12,49 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <random>
 
 #include "helpers.h"
+
+#define ENERGY_LOG_FILENAME "energy_log.txt"
+
+std::ofstream energy_log(ENERGY_LOG_FILENAME);
+
+/**
+ * @brief Checks for the conservation of energy in the system and logs the result
+ * 
+ * @param positions vector of particle positions
+ * @param velocities 
+ * @param constants 
+ */
+void check_energy_conservation(PhysicalVector2D &positions, PhysicalVector2D &velocities, Constants constants)
+{
+	// Calculate the total kinetic energy
+	// Formula: 1/2 * m * v^2
+	double kinetic_energy = 0;
+	for (int i = 0; i < constants.num_particles; i++)
+	{
+		kinetic_energy += 0.5 * (velocities.x[i] * velocities.x[i] + velocities.y[i] * velocities.y[i]);
+	}
+	// Calculate the total potential energy
+	// Formula: -G * m1 * m2 / r
+	double potential_energy = 0;
+	for (int i = 0; i < constants.num_particles; i++)
+	{
+		for (int j = i + 1; j < constants.num_particles; j++)
+		{
+			double dx = positions.x[i] - positions.x[j];
+			double dy = positions.y[i] - positions.y[j];
+			double r = sqrt(dx * dx + dy * dy);
+			potential_energy -= constants.gravity / (r + constants.softening);
+		}
+	}
+	// Calculate the total energy
+	// Formula: E = K + U
+	double total_energy = kinetic_energy + potential_energy;
+	// Print the energy values to energy_log.txt
+	energy_log << total_energy << "," << kinetic_energy << "," << potential_energy << std::endl;
+}
 
 /**
  * @brief 
@@ -107,13 +148,6 @@ void parse_constants(std::string filename, Constants &constants)
 			// Convert the value to a double
 			constants.gravity = std::stod(value);
 		}
-		else if (line.find("particle_mass") != std::string::npos)
-		{
-			// Get the value of the constant
-			std::string value = line.substr(line.find('=') + 1);
-			// Convert the value to a double
-			constants.particle_mass = std::stod(value);
-		}
 		else if (line.find("write_interval") != std::string::npos)
 		{
 			// Get the value of the constant
@@ -169,10 +203,13 @@ void gen_random_points(Constants &constants)
 	// Initialise vectors
 	constants.init_pos.x = std::vector<double>(constants.num_particles);
 	constants.init_pos.y = std::vector<double>(constants.num_particles);
+	// Initialise random number generator
+	std::uniform_real_distribution<double> unif(0, constants.box_size);
+	std::default_random_engine re;
 	// Generate random points
 	for (int i = 0; i < constants.num_particles; i++)
 	{
-		constants.init_pos.x[i] = rand() % constants.box_size;
-		constants.init_pos.y[i] = rand() % constants.box_size;
+		constants.init_pos.x[i] = unif(re);
+		constants.init_pos.y[i] = unif(re);
 	}
 }

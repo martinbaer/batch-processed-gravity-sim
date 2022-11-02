@@ -1,9 +1,8 @@
 num_particles=100
 box_size=10
-num_steps=1000
+num_steps=10000
 write_interval=10
 delta_t=0.1
 softening=0.1
 gravity=1
-particle_mass=20
 init_pos=random

@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
 		std::cout << "Error opening file " << argv[2] << std::endl;
 		return 1;
 	}
-	// Initialise vectors
+	// Initialise physical vectors
 	PhysicalVector2D pos;
 	pos.x = std::vector<double>(constants.num_particles);
 	pos.y = std::vector<double>(constants.num_particles);
@@ -72,14 +72,16 @@ int main(int argc, char *argv[])
 		acc.y[i] = 0;
 	}
 
-	// Set vector sizes
-	size_t vector_size = pos.x.size();
-
-	// Write the initial positions to the binary output file
-	write_positions(output_file, pos, constants);
 	// Loop over the number of steps
 	for (int step = 0; step < constants.num_steps; step++)
 	{
+		// Write the positions to the binary output file
+		if (step % constants.write_interval == 0)
+		{
+			write_positions(output_file, pos, constants);
+		}
+		// Check the energy conservation
+		check_energy_conservation(pos, vel, constants);
 		// Loop over the particles
 		for (int i = 0; i < constants.num_particles; i++)
 		{
@@ -96,8 +98,8 @@ int main(int argc, char *argv[])
 				double dy = pos.y[j] - pos.y[i];
 				double r = sqrt(dx * dx + dy * dy);
 				// Calculate the acceleration
-				double ax = constants.gravity * constants.particle_mass * dx / (r * r * r + constants.softening);
-				double ay = constants.gravity * constants.particle_mass * dy / (r * r * r + constants.softening);
+				double ax = constants.gravity * dx / (r * r * r + constants.softening);
+				double ay = constants.gravity * dy / (r * r * r + constants.softening);
 				// Add the acceleration to the total acceleration
 				acc.x[i] += ax;
 				acc.y[i] += ay;
@@ -115,11 +117,6 @@ int main(int argc, char *argv[])
 			// Reset the acceleration
 			acc.x[i] = 0;
 			acc.y[i] = 0;
-		}
-		// Write the positions to the binary output file
-		if (step % constants.write_interval == 0)
-		{
-			write_positions(output_file, pos, constants);
 		}
 	}
 

@@ -17,8 +17,7 @@ typedef struct Constants {
 	int write_interval;
 	double delta_t;
 	double softening;
-	double gravity;
-	double particle_mass;
+	double gravity; // Gravitational constant, multiplied by the mass of each particle squared
 	PhysicalVector2D init_pos;
 } Constants;
 
@@ -28,5 +27,6 @@ void write_positions(std::ofstream &output_file, PhysicalVector2D &positions, Co
 
 void gen_random_points(Constants &constants);
 
+void check_energy_conservation(PhysicalVector2D &positions, PhysicalVector2D &velocities, Constants constants);
 
 #endif
