@@ -1,23 +1,25 @@
 import numpy
 import sys
-import numpy as np
-from PIL import Image
+import pygame
 import subprocess
+import numpy as np
 
 NUM_DIMENSIONS = 2
 IMAGE_SIZE = 300
 DIR_NAME = "output_media"
 VIDEO_DURATION = 10
 
-
-def run_command(command: str, use_shell = False) -> tuple[str, str]:
+def run_command(command: str, use_shell = False, ignore_error = False) -> tuple[str, str]:
+	"""
+	Runs a command and returns the output and error
+	"""
 	process = subprocess.Popen(command.split(" "), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=use_shell)
 	stdout, stderr = process.communicate()
 	# decode bytes to string
 	stdout = stdout.decode("utf-8")
 	stderr = stderr.decode("utf-8")
-	if stderr:
-		print(f"---ERROR from subprocess---\n{command}\n---------------------------\n\n{stderr}\n\n---End of ERROR from subprocess---\nExiting...")
+	if stderr and not ignore_error:
+		print(f"---ERROR from subprocess---\n{command}\n----------STDERR-----------\n{stderr}\n----------STDOUT-----------\n{stdout}\n---End of ERROR from subprocess---\nExiting...")
 		exit()
 	return stdout, stderr
 
@@ -64,7 +66,7 @@ data = data.reshape(num_frames, NUM_DIMENSIONS, num_particles).tolist()
 
 
 # Create output folder
-run_command(f"rm -r {DIR_NAME}")
+run_command(f"rm -r {DIR_NAME}", ignore_error=True)
 run_command(f"mkdir {DIR_NAME}")
 
 # Write each step and save to different file by coloring each image darker
@@ -88,11 +90,10 @@ for frame in range(num_frames):
 	x_arr = [x + offset for x in x_arr]
 	y_arr = [y + offset for y in y_arr]
 
-	# Create the image
-	# Initialise the image and conver it to a numpy array
-	image = Image.new("RGB", (IMAGE_SIZE, IMAGE_SIZE))
-	image = np.array(image)
-	image.fill(0)
+	# Create a black pygame image
+	surface = pygame.Surface((IMAGE_SIZE, IMAGE_SIZE))
+	surface.fill((0, 0, 0))
+
 	# Draw the particles
 	for i in range(num_particles):
 		x = x_arr[i]
@@ -104,16 +105,16 @@ for frame in range(num_frames):
 		if x >= IMAGE_SIZE or y >= IMAGE_SIZE or x < 0 or y < 0:
 			continue
 		# Draw the particle
-		image[x, y] = STAR_COLOURS[i % len(STAR_COLOURS)]
-	# Convert the numpy array back to an image
-	image = Image.fromarray(image)
+		surface.set_at((x, y), STAR_COLOURS[i % len(STAR_COLOURS)])
 	# Save the image
-	image.save(f"{DIR_NAME}/{output_filename}_{step}.png")
+	pygame.image.save(surface, f"{DIR_NAME}/{output_filename}_{str(step).zfill(10)}.png")
 
 # Turn images into mp4
-run_command(f"ffmpeg -framerate {num_frames / VIDEO_DURATION} -pattern_type glob -i '{DIR_NAME}/{output_filename}_*.png' -c:v libx264 -pix_fmt yuv420p {DIR_NAME}/{output_filename}.mp4")
+# run_command(f"ffmpeg -framerate {num_frames / VIDEO_DURATION} -pattern_type glob -i '{DIR_NAME}/{output_filename}_*.png' -c:v libx264 -pix_fmt yuv420p {DIR_NAME}/{output_filename}.mp4", use_shell=True)
+run_command(f'ffmpeg -r {int(num_frames / VIDEO_DURATION)} -pattern_type glob -i "{DIR_NAME}/{output_filename}_*.png" -crf 20 -vcodec libx264 {DIR_NAME}/{output_filename}.mp4', use_shell=True)
+
 # Remove images
-run_command("rm output/figures/" + output_filename + "*.png")
+run_command(f"rm '{DIR_NAME}/{output_filename}_*.png'", use_shell=True)
 
 # Close the files
 constants_file.close()

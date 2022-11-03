@@ -18,6 +18,7 @@ typedef struct Constants {
 	double delta_t;
 	double softening;
 	double gravity; // Gravitational constant, multiplied by the mass of each particle squared
+	bool check_energy_conservation;
 	PhysicalVector2D init_pos;
 } Constants;
 

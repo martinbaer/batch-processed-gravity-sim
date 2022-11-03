@@ -1,3 +1,4 @@
+total_energy, kinetic_energy, potential_energy
 -1367.17,0,-1367.17
 -1383.12,10.0523,-1393.18
 -1416.26,42.0628,-1458.32

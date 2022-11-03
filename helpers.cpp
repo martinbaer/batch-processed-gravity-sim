@@ -19,6 +19,7 @@
 #define ENERGY_LOG_FILENAME "energy_log.txt"
 
 std::ofstream energy_log(ENERGY_LOG_FILENAME);
+bool energy_log_open = false;
 
 /**
  * @brief Checks for the conservation of energy in the system and logs the result
@@ -29,6 +30,11 @@ std::ofstream energy_log(ENERGY_LOG_FILENAME);
  */
 void check_energy_conservation(PhysicalVector2D &positions, PhysicalVector2D &velocities, Constants constants)
 {
+	if (!energy_log_open)
+	{
+		energy_log << "total_energy, kinetic_energy, potential_energy" << std::endl;
+		energy_log_open = true;
+	}
 	// Calculate the total kinetic energy
 	// Formula: 1/2 * m * v^2
 	double kinetic_energy = 0;
@@ -154,6 +160,11 @@ void parse_constants(std::string filename, Constants &constants)
 			std::string value = line.substr(line.find('=') + 1);
 			// Convert the value to a double
 			constants.write_interval = std::stoi(value);
+		}
+		else if (line.find("check_energy_conservation") != std::string::npos)
+		{
+			// Check if the value is true or false and set the constant
+			constants.check_energy_conservation = line.find("true") != std::string::npos;
 		}
 		else if (line.find("init_pos") != std::string::npos)
 		{

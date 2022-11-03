@@ -6,3 +6,4 @@ delta_t=0.1
 softening=0.1
 gravity=1
 init_pos=random
+check_energy_conservation=true

@@ -77,11 +77,10 @@ int main(int argc, char *argv[])
 	{
 		// Write the positions to the binary output file
 		if (step % constants.write_interval == 0)
-		{
 			write_positions(output_file, pos, constants);
-		}
 		// Check the energy conservation
-		check_energy_conservation(pos, vel, constants);
+		if (constants.check_energy_conservation) 
+			check_energy_conservation(pos, vel, constants);
 		// Loop over the particles
 		for (int i = 0; i < constants.num_particles; i++)
 		{
