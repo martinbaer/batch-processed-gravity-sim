@@ -26,6 +26,28 @@
 #define USAGE "Usage: ./bh_serial [constants file]"
 #define NUM_ARGS 2
 
+#define TREE_ROOT 0
+
+
+void print_tree(int depth, std::vector<QuadNode> tree, int node_index)
+{
+	if (node_index == 0 && depth != 0)
+	{
+		return;
+	}
+	for (int i = 0; i < depth; i++)
+	{
+		std::cout << "  ";
+	}
+	std::cout << "Node " << node_index << " at (" << tree[node_index].centre_x << ", " << tree[node_index].centre_y << ") with half width " << tree[node_index].half_width << " and mass " << tree[node_index].mass << std::endl;
+	if (!tree[node_index].is_leaf)
+	{
+		print_tree(depth + 1, tree, tree[node_index].top_left);
+		print_tree(depth + 1, tree, tree[node_index].top_right);
+		print_tree(depth + 1, tree, tree[node_index].bottom_left);
+		print_tree(depth + 1, tree, tree[node_index].bottom_right);
+	}
+}
 
 
 /**
@@ -86,7 +108,6 @@ int main(int argc, char *argv[])
 		if (constants.check_energy_conservation) 
 			check_energy_conservation(pos, vel, constants);
 
-
 		// Calculate the bounds of the simulation
 		double min_x = pos.x[0];
 		double max_x = pos.x[0];
@@ -103,27 +124,31 @@ int main(int argc, char *argv[])
 			if (pos.y[i] > max_y)
 				max_y = pos.y[i];
 		}
-		std::cout << "HERE" << std::endl;
-		// Create the root node based on the bounds
-		QuadNode *root = new QuadNode;
-		root->centre_x = (max_x + min_x) / 2;
-		root->centre_y = (max_y + min_y) / 2;
-		root->half_width = std::max(max_x - min_x, max_y - min_y) / 2;
-		root->mass = 0;
+
+
+		// Create tree
+		std::vector<QuadNode> bh_tree;
+		bh_tree.push_back(QuadNode());
+		bh_tree[TREE_ROOT].centre_x = (max_x + min_x) / 2;
+		bh_tree[TREE_ROOT].centre_y = (max_y + min_y) / 2;
+		bh_tree[TREE_ROOT].half_width = max_x - min_x < max_y - min_y ? (max_y - min_y) / 2 : (max_x - min_x) / 2;
+		bh_tree[TREE_ROOT].is_leaf = true;
 		
 		// Add each particle to the barnes-hut tree
 		for (int i = 0; i < constants.num_particles; i++)
 		{
-			bh_tree_insert(root, pos.x[i], pos.y[i]);
+			bh_tree_insert(pos.x[i], pos.y[i], bh_tree, TREE_ROOT);
 		}
 
-		// print here
-		std::cout << "root->centre_x: " << root->centre_x << std::endl;
+
+		// Print tree
+		// print_tree(0, bh_tree, TREE_ROOT);
+
 		// Loop over each particle to calculate the acceleration
 		for (int i = 0; i < constants.num_particles; i++)
 		{
 			// Get the acceleration for the particle
-			calculate_acceleration(root, &acc.x[i], &acc.y[i], pos.x[i], pos.y[i], constants);
+			add_node_acceleration(acc.x[i], acc.y[i], pos.x[i], pos.y[i], TREE_ROOT, bh_tree, constants);
 		}
 
 
@@ -140,6 +165,9 @@ int main(int argc, char *argv[])
 			acc.x[i] = 0;
 			acc.y[i] = 0;
 		}
+
+		// Destrou tree
+		bh_tree.clear();
 	}
 
 	// Close output file

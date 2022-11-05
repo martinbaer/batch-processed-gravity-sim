@@ -18,6 +18,8 @@
 
 #define ENERGY_LOG_FILENAME "energy_log.txt"
 
+#define RANDOM_SIZE 100
+
 std::ofstream energy_log(ENERGY_LOG_FILENAME);
 bool energy_log_open = false;
 
@@ -81,7 +83,6 @@ void write_positions(std::ofstream &output_file, PhysicalVector2D &positions, Co
  * 
  * Constants file format:
  * num_particles=[int]
- * box_size=[int]
  * num_steps=[int]
  * write_interval=[int]
  * delta_t=[double]
@@ -118,13 +119,6 @@ void parse_constants(std::string filename, Constants &constants)
 			std::string value = line.substr(line.find('=') + 1);
 			// Convert the value to an int
 			constants.num_particles = std::stoi(value);
-		}
-		else if (line.find("box_size") != std::string::npos)
-		{
-			// Get the value of the constant
-			std::string value = line.substr(line.find('=') + 1);
-			// Convert the value to an int
-			constants.box_size = std::stoi(value);
 		}
 		else if (line.find("num_steps") != std::string::npos)
 		{
@@ -220,7 +214,7 @@ void gen_random_points(Constants &constants)
 	constants.init_pos.x = std::vector<double>(constants.num_particles);
 	constants.init_pos.y = std::vector<double>(constants.num_particles);
 	// Initialise random number generator
-	std::uniform_real_distribution<double> unif(0, constants.box_size);
+	std::uniform_real_distribution<double> unif(0, RANDOM_SIZE);
 	std::default_random_engine re;
 	// Generate random points
 	for (int i = 0; i < constants.num_particles; i++)

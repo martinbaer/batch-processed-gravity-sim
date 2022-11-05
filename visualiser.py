@@ -48,7 +48,6 @@ for line in constants_file:
 
 num_particles = int(constants["num_particles"])
 num_steps = int(constants["num_steps"])
-box_size = float(constants["box_size"])
 write_interval = int(constants["write_interval"])
 input_file = open(constants["output_filename"])
 
@@ -61,6 +60,43 @@ num_frames = num_steps // write_interval
 # Read all the data
 data = numpy.fromfile(input_file, dtype=numpy.float64)
 
+# Find the centre of mass of the entire simulation (every particle at every step)
+centre_of_mass_x = 0
+centre_of_mass_y = 0
+for frame in range(num_frames):
+	for i in range(num_particles):
+		centre_of_mass_x += data[frame * 2 * num_particles + i]
+		centre_of_mass_y += data[frame * 2 * num_particles + num_particles + i]
+centre_of_mass_x /= len(data) / 2
+centre_of_mass_y /= len(data) / 2
+
+# Move the centre of mass to the centre of the screen
+for frame in range(num_frames):
+	for i in range(num_particles):
+		data[frame * 2 * num_particles + i] -= centre_of_mass_x
+		data[frame * 2 * num_particles + num_particles + i] -= centre_of_mass_y
+
+# Find the distances from the centre of mass
+distances = []
+# for element in data:
+# 	distances.append(np.sqrt((element - centre_of_mass_x)**2 + (element - centre_of_mass_y)**2))
+for frame in range(num_frames):
+	for i in range(num_particles):
+		distances.append(np.sqrt((data[frame * 2 * num_particles + i] - centre_of_mass_x)**2 + (data[frame * 2 * num_particles + num_particles + i] - centre_of_mass_y)**2))
+
+# Find the 99% percentile interval from the centre of mass (0, 0) and use this to scale the image
+view_radius = np.percentile(distances, 95)
+print(view_radius)
+scale_factor = IMAGE_SIZE / (2 * view_radius)
+
+# Scale the data to fit the screen and offset it to the centre
+for frame in range(num_frames):
+	for i in range(num_particles):
+		data[frame * 2 * num_particles + i] *= scale_factor
+		data[frame * 2 * num_particles + i] += IMAGE_SIZE / 2
+		data[frame * 2 * num_particles + num_particles + i] *= scale_factor
+		data[frame * 2 * num_particles + num_particles + i] += IMAGE_SIZE / 2
+
 # Reshape the data
 data = data.reshape(num_frames, NUM_DIMENSIONS, num_particles).tolist()
 
@@ -69,29 +105,13 @@ data = data.reshape(num_frames, NUM_DIMENSIONS, num_particles).tolist()
 run_command(f"rm -r {DIR_NAME}", ignore_error=True)
 run_command(f"mkdir {DIR_NAME}")
 
+
+
 # Write each step and save to different file by coloring each image darker
 for frame in range(num_frames):
 	step = frame * write_interval
 	x_arr = data[frame][0]
 	y_arr = data[frame][1]
-	# Find the centre of mass of the system
-	x_centre = sum(x_arr) / num_particles
-	y_centre = sum(y_arr) / num_particles
-	# Move the centre of mass to (0, 0)
-	x_arr = [x - x_centre for x in x_arr]
-	y_arr = [y - y_centre for y in y_arr]
-	# Find the 99% confidence interval from the centre of mass (0, 0)
-	distances = [np.sqrt(x ** 2 + y ** 2) for x, y in zip(x_arr, y_arr)]
-	distances.sort()
-	max_dist = distances[int(num_particles * 0.99)]
-
-	# Bring all particles closer to the centre of mass so that the maximum distance is box_size / 2
-	x_arr = [x * box_size / 2 / max_dist for x in x_arr]
-	y_arr = [y * box_size / 2 / max_dist for y in y_arr]
-	# Move the centre of mass to the centre of the image
-	offset = box_size / 2
-	x_arr = [x + offset for x in x_arr]
-	y_arr = [y + offset for y in y_arr]
 
 	# Create a black pygame image
 	surface = pygame.Surface((IMAGE_SIZE, IMAGE_SIZE))
@@ -102,8 +122,8 @@ for frame in range(num_frames):
 		x = x_arr[i]
 		y = y_arr[i]
 		# Convert to pixel coordinates
-		x = int((x / box_size) * IMAGE_SIZE)
-		y = int((y / box_size) * IMAGE_SIZE)
+		x = int(x)
+		y = int(y)
 		# Check if the particle is in the image
 		if x >= IMAGE_SIZE or y >= IMAGE_SIZE or x < 0 or y < 0:
 			continue
@@ -115,7 +135,7 @@ for frame in range(num_frames):
 
 # Turn images into mp4
 # run_command(f"ffmpeg -framerate {num_frames / VIDEO_DURATION} -pattern_type glob -i '{DIR_NAME}/{output_filename}_*.png' -c:v libx264 -pix_fmt yuv420p {DIR_NAME}/{output_filename}.mp4", use_shell=True)
-run_command(f"sh .utils/ffmpeg.sh {num_frames // VIDEO_DURATION} {DIR_NAME}/{OUTPUT_NAME}.mp4", ignore_error=True)
+run_command(f"sh ./shell_scripts/ffmpeg.sh {num_frames // VIDEO_DURATION} {DIR_NAME}/{OUTPUT_NAME}.mp4", ignore_error=True)
 
 # Remove images
 for frame in range(num_frames):

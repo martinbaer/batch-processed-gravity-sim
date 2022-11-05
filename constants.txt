@@ -1,10 +1,9 @@
-num_particles=7000
-box_size=10
-num_steps=4000
+num_particles=500
+num_steps=1000
 write_interval=1
-delta_t=0.0005
-softening=0.0001
+delta_t=0.01
+softening=0.1
 gravity=1
 init_pos=random
-check_energy_conservation=false
+check_energy_conservation=true
 output_filename=test.bin
