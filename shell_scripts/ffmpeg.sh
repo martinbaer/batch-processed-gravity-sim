@@ -1,0 +1,1 @@
+ffmpeg -r "$1" -pattern_type glob -i 'output_media/*.png' -crf 20 -vcodec libx264 "$2"

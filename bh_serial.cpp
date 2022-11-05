@@ -1,11 +1,13 @@
 /**
- * @file pp_serial.cpp
+ * @file bh_serial.cpp
  * @author Martin Baer
  * @brief 
  * Particle-particle simulator serial implimentation
  * This code simulates a given particle system for a given number of steps, 
  * saving the particle positions of each step to a file.
  * It also prints the time it took to run the simulation.
+ * 
+ * Barnes-Hut simulator serial implimentation
  * @version 0.1
  * @date 2022-11-01
  * 
@@ -19,9 +21,9 @@
 #include <vector>
 #include <math.h>
 
-#include "helpers.h"
+#include "bh_helpers.h"
 
-#define USAGE "Usage: ./pp_serial [constants file]"
+#define USAGE "Usage: ./bh_serial [constants file]"
 #define NUM_ARGS 2
 
 
@@ -72,6 +74,8 @@ int main(int argc, char *argv[])
 		acc.y[i] = 0;
 	}
 
+	
+
 	// Loop over the number of steps
 	for (int step = 0; step < constants.num_steps; step++)
 	{
@@ -81,27 +85,49 @@ int main(int argc, char *argv[])
 		// Check the energy conservation
 		if (constants.check_energy_conservation) 
 			check_energy_conservation(pos, vel, constants);
-		// Loop over the particles
+
+
+		// Calculate the bounds of the simulation
+		double min_x = pos.x[0];
+		double max_x = pos.x[0];
+		double min_y = pos.y[0];
+		double max_y = pos.y[0];
+		for (int i = 1; i < constants.num_particles; i++)
+		{
+			if (pos.x[i] < min_x)
+				min_x = pos.x[i];
+			if (pos.x[i] > max_x)
+				max_x = pos.x[i];
+			if (pos.y[i] < min_y)
+				min_y = pos.y[i];
+			if (pos.y[i] > max_y)
+				max_y = pos.y[i];
+		}
+		std::cout << "HERE" << std::endl;
+		// Create the root node based on the bounds
+		QuadNode *root = new QuadNode;
+		root->centre_x = (max_x + min_x) / 2;
+		root->centre_y = (max_y + min_y) / 2;
+		root->half_width = std::max(max_x - min_x, max_y - min_y) / 2;
+		root->mass = 0;
+		
+		// Add each particle to the barnes-hut tree
 		for (int i = 0; i < constants.num_particles; i++)
 		{
-			// Loop over the other particles
-			for (int j = 0; j < constants.num_particles; j++)
-			{
-				// Check if the particles are the same
-				if (i == j)
-				{
-					continue;
-				}
-				// Calculate the distance between the particles
-				double dx = pos.x[j] - pos.x[i];
-				double dy = pos.y[j] - pos.y[i];
-				double r = sqrt(dx * dx + dy * dy);
-				// Calculate and cumulatively sum the acceleration
-				acc.x[i] += constants.gravity * dx / (r * r * r + constants.softening);
-				acc.y[i] += constants.gravity * dy / (r * r * r + constants.softening);
-			}
+			bh_tree_insert(root, pos.x[i], pos.y[i]);
 		}
-		// Loop over the particles
+
+		// print here
+		std::cout << "root->centre_x: " << root->centre_x << std::endl;
+		// Loop over each particle to calculate the acceleration
+		for (int i = 0; i < constants.num_particles; i++)
+		{
+			// Get the acceleration for the particle
+			calculate_acceleration(root, &acc.x[i], &acc.y[i], pos.x[i], pos.y[i], constants);
+		}
+
+
+		// Loop over the particles to update their velocities and positions
 		for (int i = 0; i < constants.num_particles; i++)
 		{
 			// Update the velocity

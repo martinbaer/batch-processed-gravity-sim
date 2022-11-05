@@ -166,6 +166,11 @@ void parse_constants(std::string filename, Constants &constants)
 			// Check if the value is true or false and set the constant
 			constants.check_energy_conservation = line.find("true") != std::string::npos;
 		}
+		else if (line.find("output_filename") != std::string::npos)
+		{
+			// Get the value of the constant
+			constants.output_filename = line.substr(line.find('=') + 1);
+		}
 		else if (line.find("init_pos") != std::string::npos)
 		{
 			// Get the value of the constant

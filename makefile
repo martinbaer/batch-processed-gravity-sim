@@ -1,17 +1,23 @@
 MPICXX?=mpic++
 CXX?=g++
-CXXFLAGS?=-std=c++11 -O2
+CXXFLAGS?=-std=c++11 -O2 -g
+# -g is for debugging
 NVCC?=nvcc
 NVFLAGS?=-O2 --gpu-architecture=sm_35 -Wno-deprecated-gpu-targets
 
-TARGETS = pp_serial
+TARGETS = pp_serial bh_serial
 
-default : all
+default: 
+	./shell_scripts/unhide_objects.sh
+	make all
+	./shell_scripts/hide_objects.sh
 
 # dependancies
-$(TARGETS): helpers.o helpers.h
+$(TARGETS): helpers.o helpers.h bh_helpers.o bh_helpers.h
 
 helpers.o: helpers.h
+
+bh_helpers.o: bh_helpers.h helpers.h
 
 # wildcard rules
 %.o: %.cpp
@@ -19,8 +25,6 @@ helpers.o: helpers.h
 
 %: %.cpp
 	$(CXX) $(CXXFLAGS) $(filter %.o %.cpp, $^) -o $@
-
-
 
 # rules
 all: $(TARGETS)
