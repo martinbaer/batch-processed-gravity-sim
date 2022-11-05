@@ -13,11 +13,11 @@ default:
 	./shell_scripts/hide_objects.sh
 
 # dependancies
-$(TARGETS): helpers.o helpers.h bh_helpers.o bh_helpers.h
+$(TARGETS): helpers.o helpers.h bh_tree.o bh_tree.h
 
 helpers.o: helpers.h
 
-bh_helpers.o: bh_helpers.h helpers.h
+bh_tree.o: bh_tree.h helpers.h
 
 # wildcard rules
 %.o: %.cpp

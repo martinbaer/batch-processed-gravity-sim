@@ -1,8 +1,8 @@
-num_particles=500
+num_particles=1000
 num_steps=1000
 write_interval=1
-delta_t=0.01
-softening=0.1
+delta_t=0.1
+softening=0.01
 gravity=1
 init_pos=random
 check_energy_conservation=true

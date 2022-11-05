@@ -21,7 +21,7 @@
 #include <vector>
 #include <math.h>
 
-#include "bh_helpers.h"
+#include "bh_tree.h"
 
 #define USAGE "Usage: ./bh_serial [constants file]"
 #define NUM_ARGS 2
@@ -39,7 +39,7 @@ void print_tree(int depth, std::vector<QuadNode> tree, int node_index)
 	{
 		std::cout << "  ";
 	}
-	std::cout << "Node " << node_index << " at (" << tree[node_index].centre_x << ", " << tree[node_index].centre_y << ") with half width " << tree[node_index].half_width << " and mass " << tree[node_index].mass << std::endl;
+	std::cout << "Node " << node_index << " with mass " << tree[node_index].mass << std::endl;
 	if (!tree[node_index].is_leaf)
 	{
 		print_tree(depth + 1, tree, tree[node_index].top_left);
@@ -125,19 +125,20 @@ int main(int argc, char *argv[])
 				max_y = pos.y[i];
 		}
 
-
 		// Create tree
 		std::vector<QuadNode> bh_tree;
 		bh_tree.push_back(QuadNode());
-		bh_tree[TREE_ROOT].centre_x = (max_x + min_x) / 2;
-		bh_tree[TREE_ROOT].centre_y = (max_y + min_y) / 2;
-		bh_tree[TREE_ROOT].half_width = max_x - min_x < max_y - min_y ? (max_y - min_y) / 2 : (max_x - min_x) / 2;
 		bh_tree[TREE_ROOT].is_leaf = true;
+		// Create root node info
+		QuadNodeDesc root_info;
+		root_info.centre_x = (max_x + min_x) / 2;
+		root_info.centre_y = (max_y + min_y) / 2;
+		root_info.half_width = max_x - min_x < max_y - min_y ? (max_y - min_y) / 2 : (max_x - min_x) / 2;
 		
 		// Add each particle to the barnes-hut tree
 		for (int i = 0; i < constants.num_particles; i++)
 		{
-			bh_tree_insert(pos.x[i], pos.y[i], bh_tree, TREE_ROOT);
+			bh_tree_insert(pos.x[i], pos.y[i], bh_tree, root_info);
 		}
 
 
@@ -148,7 +149,7 @@ int main(int argc, char *argv[])
 		for (int i = 0; i < constants.num_particles; i++)
 		{
 			// Get the acceleration for the particle
-			add_node_acceleration(acc.x[i], acc.y[i], pos.x[i], pos.y[i], TREE_ROOT, bh_tree, constants);
+			add_node_acceleration(acc.x[i], acc.y[i], pos.x[i], pos.y[i], TREE_ROOT, root_info.half_width, bh_tree, constants);
 		}
 
 
@@ -166,7 +167,7 @@ int main(int argc, char *argv[])
 			acc.y[i] = 0;
 		}
 
-		// Destrou tree
+		// Destroy tree
 		bh_tree.clear();
 	}
 
