@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
 	// Check if the file opened
 	if (!output_file.is_open())
 	{
-		std::cout << "Error opening file " << argv[2] << std::endl;
+		std::cerr << "Error opening file " << argv[2] << std::endl;
 		return 1;
 	}
 	// Initialise physical vectors

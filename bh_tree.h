@@ -6,18 +6,16 @@
 typedef struct QuadNode {
 	double centre_of_mass_x;
 	double centre_of_mass_y;
-	int mass;
-	int top_left;
-	int top_right;
-	int bottom_left;
-	int bottom_right;
-	bool is_leaf;
+	unsigned short mass;
+	unsigned short top_left;
+	unsigned short top_right;
+	unsigned short bottom_left;
+	unsigned short bottom_right;
 } QuadNode;
-// TODO: create an echo QuadNode strcuture that contains only info the bh builder needs
 
 // Additional information on each node used in the construction of the BH tree but not the the BH tree itself
 typedef struct QuadNodeDesc {
-	int index;
+	unsigned short index;
 	double centre_x;
 	double centre_y;
 	double half_width;

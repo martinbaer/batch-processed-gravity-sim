@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 #include <math.h>
+#include <limits>
 
 #include "bh_tree.h"
 
@@ -39,14 +40,15 @@ void print_tree(int depth, std::vector<QuadNode> tree, int node_index)
 	{
 		std::cout << "  ";
 	}
-	std::cout << "Node " << node_index << " with mass " << tree[node_index].mass << std::endl;
-	if (!tree[node_index].is_leaf)
-	{
+	std::cout << "Node " << node_index << " with mass " << tree[node_index].mass << ", centre of mass (" << tree[node_index].centre_of_mass_x << ", " << tree[node_index].centre_of_mass_y << ")" << std::endl;
+	if (tree[node_index].top_left)
 		print_tree(depth + 1, tree, tree[node_index].top_left);
+	if (tree[node_index].top_right)
 		print_tree(depth + 1, tree, tree[node_index].top_right);
+	if (tree[node_index].bottom_left)
 		print_tree(depth + 1, tree, tree[node_index].bottom_left);
+	if (tree[node_index].bottom_right)
 		print_tree(depth + 1, tree, tree[node_index].bottom_right);
-	}
 }
 
 
@@ -60,18 +62,25 @@ int main(int argc, char *argv[])
 	// Check if the correct number of arguments were given
 	if (argc != NUM_ARGS)
 	{
-		std::cout << USAGE << std::endl;
+		std::cerr << USAGE << std::endl;
 		return 1;
 	}
 	// Parse the constants file
 	Constants constants;
 	parse_constants(argv[1], constants);
+	// Check that the number of particles does not exceed the limitations of data types
+	// (the BH tree must store pointers to the children of each node)
+	if (4 * constants.num_particles - 1 > USHRT_MAX)
+	{
+		std::cerr << "Error: Too many particles for BH tree: " << constants.num_particles << " * 4 + 1 > " << USHRT_MAX << std::endl;
+		return 1;
+	}
 	// Initialise the output file
 	std::ofstream output_file(constants.output_filename);
 	// Check if the file opened
 	if (!output_file.is_open())
 	{
-		std::cout << "Error opening file " << argv[2] << std::endl;
+		std::cerr << "Error opening file " << argv[2] << std::endl;
 		return 1;
 	}
 	// Initialise physical vectors
@@ -128,12 +137,12 @@ int main(int argc, char *argv[])
 		// Create tree
 		std::vector<QuadNode> bh_tree;
 		bh_tree.push_back(QuadNode());
-		bh_tree[TREE_ROOT].is_leaf = true;
 		// Create root node info
 		QuadNodeDesc root_info;
 		root_info.centre_x = (max_x + min_x) / 2;
 		root_info.centre_y = (max_y + min_y) / 2;
 		root_info.half_width = max_x - min_x < max_y - min_y ? (max_y - min_y) / 2 : (max_x - min_x) / 2;
+
 		
 		// Add each particle to the barnes-hut tree
 		for (int i = 0; i < constants.num_particles; i++)
@@ -144,6 +153,7 @@ int main(int argc, char *argv[])
 
 		// Print tree
 		// print_tree(0, bh_tree, TREE_ROOT);
+		// exit(0);
 
 		// Loop over each particle to calculate the acceleration
 		for (int i = 0; i < constants.num_particles; i++)

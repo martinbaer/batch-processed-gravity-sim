@@ -39,7 +39,7 @@ void add_node_acceleration(double &acc_x, double &acc_y, double x, double y, int
 	double dy = node.centre_of_mass_y - y;
 	double d = sqrt(dx * dx + dy * dy);
 	// If the node is a leaf, add the acceleration
-	if (node.is_leaf)
+	if (node.mass == 1)
 	{
 		// Calculate and add the acceleration (mass is 1)
 		acc_x += constants.gravity * dx / (d * d * d + constants.softening);
@@ -53,7 +53,7 @@ void add_node_acceleration(double &acc_x, double &acc_y, double x, double y, int
 		// d is the distance between the particle and the centre of the node, r
 		if (s / d < THETA)
 		{
-			// Calculate and cumulatively sum the acceleration
+			// Calculate and add the acceleration (mass is >1)
 			acc_x += constants.gravity * node.mass * dx / (d * d * d + constants.softening);
 			acc_y += constants.gravity * node.mass * dy / (d * d * d + constants.softening);
 		}
@@ -107,15 +107,11 @@ QuadNodeDesc get_child(double x, double y, std::vector<QuadNode> &tree, QuadNode
 			child_node_desc.index = tree.size();
 			tree[parent_index].top_left = child_node_desc.index;
 			tree.push_back(QuadNode());
-			// Set as a leaf node
-			tree[child_node_desc.index].is_leaf = true;
 		}
 		else
 		{
 			child_node_desc.index = parent_node.top_left;
 		}
-		// Return the top left quadrant
-		return child_node_desc;
 	}
 	// Check if the particle is in the top right quadrant
 	else if (x >= parent_centre_x && y >= parent_centre_y)
@@ -130,15 +126,11 @@ QuadNodeDesc get_child(double x, double y, std::vector<QuadNode> &tree, QuadNode
 			child_node_desc.index = tree.size();
 			tree[parent_index].top_right = child_node_desc.index;
 			tree.push_back(QuadNode());
-			// Set as a leaf node
-			tree[child_node_desc.index].is_leaf = true;
 		}
 		else
 		{
 			child_node_desc.index = parent_node.top_right;
 		}
-		// Return the top right quadrant
-		return child_node_desc;
 	}
 	// Check if the particle is in the bottom left quadrant
 	else if (x <= parent_centre_x && y <= parent_centre_y)
@@ -153,15 +145,11 @@ QuadNodeDesc get_child(double x, double y, std::vector<QuadNode> &tree, QuadNode
 			child_node_desc.index = tree.size();
 			tree[parent_index].bottom_left = child_node_desc.index;
 			tree.push_back(QuadNode());
-			// Set as a leaf node
-			tree[child_node_desc.index].is_leaf = true;
 		}
 		else
 		{
 			child_node_desc.index = parent_node.bottom_left;
 		}
-		// Return the bottom left quadrant
-		return child_node_desc;
 	}
 	// Check if the particle is in the bottom right quadrant
 	else
@@ -176,16 +164,14 @@ QuadNodeDesc get_child(double x, double y, std::vector<QuadNode> &tree, QuadNode
 			child_node_desc.index = tree.size();
 			tree[parent_index].bottom_right = child_node_desc.index;
 			tree.push_back(QuadNode());
-			// Set as a leaf node
-			tree[child_node_desc.index].is_leaf = true;
 		}
 		else
 		{
 			child_node_desc.index = parent_node.bottom_right;
 		}
-		// Return the bottom right quadrant
-		return child_node_desc;
 	}
+	// Return the child node
+	return child_node_desc;
 }
 
 /**
@@ -199,10 +185,12 @@ QuadNodeDesc get_child(double x, double y, std::vector<QuadNode> &tree, QuadNode
 void bh_tree_insert(double x, double y, std::vector<QuadNode> &tree, QuadNodeDesc node_desc)
 {
 	int node_index = node_desc.index;
-	if (tree[node_index].is_leaf)
+	QuadNode node = tree[node_index];
+	// Check if the node is a leaf
+	if (!(node.top_left || node.top_right || node.bottom_left || node.bottom_right))
 	{
 		// Node is a leaf
-		if (tree[node_index].mass == 0)
+		if (node.mass == 0)
 		{
 			// Node is an empty leaf: add the particle here
 			tree[node_index].mass = 1;
@@ -212,22 +200,21 @@ void bh_tree_insert(double x, double y, std::vector<QuadNode> &tree, QuadNodeDes
 		else
 		{
 			// Node is an occupied leaf: split the node and add the existing and new particles
-			tree[node_index].is_leaf = false;
-			// Add the old body to child of the tree
-			QuadNodeDesc child_info = get_child(tree[node_index].centre_of_mass_x, tree[node_index].centre_of_mass_y, tree, node_desc);
-			bh_tree_insert(tree[node_index].centre_of_mass_x, tree[node_index].centre_of_mass_y, tree, child_info);
-			// Re-add the new body to the tree
+			// Add the existing particle to child of the tree
+			QuadNodeDesc child_desc = get_child(node.centre_of_mass_x, node.centre_of_mass_y, tree, node_desc);
+			bh_tree_insert(node.centre_of_mass_x, node.centre_of_mass_y, tree, child_desc);
+			// Re-try adding new particle to the tree
 			bh_tree_insert(x, y, tree, node_desc);
 		}
 	}
 	else
 	{
-		// Node is not a leaf: update the COM and mass of the node and add the node's child
-		tree[node_index].centre_of_mass_x = (tree[node_index].centre_of_mass_x * tree[node_index].mass + x) / (tree[node_index].mass + 1);
-		tree[node_index].centre_of_mass_y = (tree[node_index].centre_of_mass_y * tree[node_index].mass + y) / (tree[node_index].mass + 1);
+		// Node is not a leaf: update the mass and centre of mass of the node and add the node's child
+		tree[node_index].centre_of_mass_x = (node.centre_of_mass_x * node.mass + x) / (node.mass + 1);
+		tree[node_index].centre_of_mass_y = (node.centre_of_mass_y * node.mass + y) / (node.mass + 1);
 		tree[node_index].mass++;
 		// Add the particle to the appropriate child
-		QuadNodeDesc child_info = get_child(x, y, tree, node_desc);
-		bh_tree_insert(x, y, tree, child_info);
+		QuadNodeDesc child_desc = get_child(x, y, tree, node_desc);
+		bh_tree_insert(x, y, tree, child_desc);
 	}
 }
