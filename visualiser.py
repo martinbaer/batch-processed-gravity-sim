@@ -3,12 +3,16 @@ import sys
 import pygame
 import subprocess
 import numpy as np
+import os
 
 NUM_DIMENSIONS = 2
 IMAGE_SIZE = 500
-DIR_NAME = "output_media"
 VIDEO_DURATION = 30
-OUTPUT_NAME = "simulation"
+OUTPUT_DIR = "output"
+TEMP_DIR = "temp_pngs"
+
+
+
 
 def run_command(command: str, use_shell = False, ignore_error = False) -> tuple[str, str]:
 	"""
@@ -49,6 +53,7 @@ for line in constants_file:
 num_particles = int(constants["num_particles"])
 num_steps = int(constants["num_steps"])
 write_interval = int(constants["write_interval"])
+input_filename = constants["output_filename"]
 input_file = open(constants["output_filename"])
 
 num_frames = num_steps // write_interval
@@ -86,7 +91,6 @@ for frame in range(num_frames):
 
 # Find the 99% percentile interval from the centre of mass (0, 0) and use this to scale the image
 view_radius = np.percentile(distances, 95)
-print(view_radius)
 scale_factor = IMAGE_SIZE / (2 * view_radius)
 
 # Scale the data to fit the screen and offset it to the centre
@@ -102,10 +106,13 @@ data = data.reshape(num_frames, NUM_DIMENSIONS, num_particles).tolist()
 
 
 # Create output folder
-run_command(f"rm -r {DIR_NAME}", ignore_error=True)
-run_command(f"mkdir {DIR_NAME}")
+run_command(f"rm -r {TEMP_DIR}", ignore_error=True)
+run_command(f"mkdir {TEMP_DIR}")
 
+output_filename = f"{os.path.splitext(input_filename)[0]}.mp4"
+run_command(f"rm {output_filename}")
 
+digits_needed = len(str(num_frames * write_interval))
 
 # Write each step and save to different file by coloring each image darker
 for frame in range(num_frames):
@@ -130,17 +137,15 @@ for frame in range(num_frames):
 		# Draw the particle
 		surface.set_at((x, y), STAR_COLOURS[i % len(STAR_COLOURS)])
 	# Save the image
-	pygame.image.save(surface, f"{DIR_NAME}/{OUTPUT_NAME}_{str(step).zfill(len(str(num_frames * write_interval)))}.png")
-
+	pygame.image.save(surface, f"{TEMP_DIR}/{str(step).zfill(digits_needed)}.png")
 
 # Turn images into mp4
 # run_command(f"ffmpeg -framerate {num_frames / VIDEO_DURATION} -pattern_type glob -i '{DIR_NAME}/{output_filename}_*.png' -c:v libx264 -pix_fmt yuv420p {DIR_NAME}/{output_filename}.mp4", use_shell=True)
-run_command(f"sh ./shell_scripts/ffmpeg.sh {num_frames // VIDEO_DURATION} {DIR_NAME}/{OUTPUT_NAME}.mp4", ignore_error=True)
+
+run_command(f"sh ./shell_scripts/ffmpeg.sh {num_frames // VIDEO_DURATION} {output_filename}", ignore_error=True)
 
 # Remove images
-for frame in range(num_frames):
-	step = frame * write_interval
-	run_command(f'rm {DIR_NAME}/{OUTPUT_NAME}_{str(step).zfill(len(str(num_frames * write_interval)))}.png')
+run_command(f"rm -r {TEMP_DIR}", ignore_error=True)
 
 # Close the files
 constants_file.close()

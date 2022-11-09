@@ -1,0 +1,1 @@
+top -l 1 | grep "_serial" | awk '{print "memory usage = "$8""}'

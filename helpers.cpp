@@ -16,12 +16,18 @@
 
 #include "helpers.h"
 
-#define ENERGY_LOG_FILENAME "energy_log.txt"
+#include "bh_tree.h"
+
+// TODO change everything to take input/* for input files and save everything to output (do this in the makefile?? and python script)
+
+#define ENERGY_LOG_FILENAME "output/energy_log.txt"
 
 #define RANDOM_SIZE 100
 
 std::ofstream energy_log(ENERGY_LOG_FILENAME);
 bool energy_log_open = false;
+
+
 
 /**
  * @brief Checks for the conservation of energy in the system and logs the result
@@ -30,7 +36,7 @@ bool energy_log_open = false;
  * @param velocities 
  * @param constants 
  */
-void check_energy_conservation(PhysicalVector2D &positions, PhysicalVector2D &velocities, Constants constants)
+void log_energy_conservation(std::vector<double> pos_x, std::vector<double> pos_y, std::vector<double> vel_x, std::vector<double> vel_y, Constants constants)
 {
 	if (!energy_log_open)
 	{
@@ -42,7 +48,7 @@ void check_energy_conservation(PhysicalVector2D &positions, PhysicalVector2D &ve
 	double kinetic_energy = 0;
 	for (int i = 0; i < constants.num_particles; i++)
 	{
-		kinetic_energy += 0.5 * (velocities.x[i] * velocities.x[i] + velocities.y[i] * velocities.y[i]);
+		kinetic_energy += 0.5 * (vel_x[i] * vel_x[i] + vel_y[i] * vel_y[i]);
 	}
 	// Calculate the total potential energy
 	// Formula: -G * m1 * m2 / r
@@ -51,8 +57,8 @@ void check_energy_conservation(PhysicalVector2D &positions, PhysicalVector2D &ve
 	{
 		for (int j = i + 1; j < constants.num_particles; j++)
 		{
-			double dx = positions.x[i] - positions.x[j];
-			double dy = positions.y[i] - positions.y[j];
+			double dx = pos_x[i] - pos_x[j];
+			double dy = pos_y[i] - pos_y[j];
 			double r = sqrt(dx * dx + dy * dy);
 			potential_energy -= constants.gravity / (r + constants.softening);
 		}
@@ -70,10 +76,10 @@ void check_energy_conservation(PhysicalVector2D &positions, PhysicalVector2D &ve
  * @param output_file given binary output file
  * @param positions vector of particle positions
  */
-void write_positions(std::ofstream &output_file, PhysicalVector2D &positions, Constants constants)
+void write_positions(std::ofstream &output_file, std::vector<double> pos_x, std::vector<double> pos_y, Constants constants)
 {
-	output_file.write((char *)&(positions.x)[0], constants.num_particles * sizeof(double));
-	output_file.write((char *)&(positions.y)[0], constants.num_particles * sizeof(double));
+	output_file.write((char *)&(pos_x)[0], constants.num_particles * sizeof(double));
+	output_file.write((char *)&(pos_y)[0], constants.num_particles * sizeof(double));
 }
 
 /**
@@ -120,6 +126,13 @@ void parse_constants(std::string filename, Constants &constants)
 			// Convert the value to an int
 			constants.num_particles = std::stoi(value);
 		}
+		if (line.find("theta") != std::string::npos)
+		{
+			// Get the value of the constant
+			std::string value = line.substr(line.find('=') + 1);
+			// Convert the value to an int
+			constants.theta = std::stod(value);
+		}
 		else if (line.find("num_steps") != std::string::npos)
 		{
 			// Get the value of the constant
@@ -155,10 +168,15 @@ void parse_constants(std::string filename, Constants &constants)
 			// Convert the value to a double
 			constants.write_interval = std::stoi(value);
 		}
-		else if (line.find("check_energy_conservation") != std::string::npos)
+		else if (line.find("log_energy_conservation") != std::string::npos)
 		{
 			// Check if the value is true or false and set the constant
-			constants.check_energy_conservation = line.find("true") != std::string::npos;
+			constants.log_energy_conservation = line.find("true") != std::string::npos;
+		}
+		else if (line.find("log_tree_size") != std::string::npos)
+		{
+			// Check if the value is true or false and set the constant
+			constants.log_tree_size = line.find("true") != std::string::npos;
 		}
 		else if (line.find("output_filename") != std::string::npos)
 		{
@@ -187,8 +205,8 @@ void parse_constants(std::string filename, Constants &constants)
 					exit(1);
 				}
 				// Initialize the vectors
-				constants.init_pos.x = std::vector<double>(constants.num_particles);
-				constants.init_pos.y = std::vector<double>(constants.num_particles);
+				constants.init_pos_x = std::vector<double>(constants.num_particles);
+				constants.init_pos_y = std::vector<double>(constants.num_particles);
 				// Read the file
 				std::string init_pos_line;
 				while (std::getline(init_pos_file, init_pos_line))
@@ -200,8 +218,8 @@ void parse_constants(std::string filename, Constants &constants)
 					double x_d = std::stod(x);
 					double y_d = std::stod(y);
 					// Add the values to the vectors
-					constants.init_pos.x.push_back(x_d);
-					constants.init_pos.y.push_back(y_d);
+					constants.init_pos_x.push_back(x_d);
+					constants.init_pos_y.push_back(y_d);
 				}
 			}
 		}
@@ -211,15 +229,15 @@ void parse_constants(std::string filename, Constants &constants)
 void gen_random_points(Constants &constants)
 {
 	// Initialise vectors
-	constants.init_pos.x = std::vector<double>(constants.num_particles);
-	constants.init_pos.y = std::vector<double>(constants.num_particles);
+	constants.init_pos_x = std::vector<double>(constants.num_particles);
+	constants.init_pos_y = std::vector<double>(constants.num_particles);
 	// Initialise random number generator
 	std::uniform_real_distribution<double> unif(0, RANDOM_SIZE);
 	std::default_random_engine re;
 	// Generate random points
 	for (int i = 0; i < constants.num_particles; i++)
 	{
-		constants.init_pos.x[i] = unif(re);
-		constants.init_pos.y[i] = unif(re);
+		constants.init_pos_x[i] = unif(re);
+		constants.init_pos_y[i] = unif(re);
 	}
 }
