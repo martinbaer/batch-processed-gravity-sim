@@ -28,6 +28,95 @@
 #define NUM_ARGS 2
 
 
+void add_node_acceleration(double &acc_x, double &acc_y, double x, double y, unsigned int node_index, double s, BHTree bh_tree, Constants constants)
+{
+	Node node = bh_tree.nodes[node_index];
+	// Calculate the distance between the particle and the node
+	double dx = node.centre_of_mass_x - x;
+	double dy = node.centre_of_mass_y - y;
+	double d = sqrt(dx * dx + dy * dy);
+	// If the node is a leaf, add the acceleration
+	if (node.mass == 1)
+	{
+		// Calculate and add the acceleration (mass is 1)
+		acc_x += dx / (d * d * d + constants.softening);
+		acc_y += dy / (d * d * d + constants.softening);
+	}
+	// If the node is not a leaf, check if the node is far enough to take its centre of mass
+	else
+	{
+		// Check the s/d ratio for the node
+		if (s / d < constants.theta)
+		{
+			// Calculate and add the acceleration (mass is >1)
+			acc_x += node.mass * dx / (d * d * d + constants.softening);
+			acc_y += node.mass * dy / (d * d * d + constants.softening);
+		}
+		else
+		{
+			// Recursively calculate the acceleration
+			double new_s = s / 2;
+			if (node.bottom_left)
+				add_node_acceleration(acc_x, acc_y, x, y, node.bottom_left, new_s, bh_tree, constants);
+			if (node.bottom_right)
+				add_node_acceleration(acc_x, acc_y, x, y, node.bottom_right, new_s, bh_tree, constants);
+			if (node.top_left)
+				add_node_acceleration(acc_x, acc_y, x, y, node.top_left, new_s, bh_tree, constants);
+			if (node.top_right)
+				add_node_acceleration(acc_x, acc_y, x, y, node.top_right, new_s, bh_tree, constants);
+		}
+	}
+}
+
+
+// add_node_acceleration but iterative instead of recursive
+void add_node_acceleration_iterative(double &acc_x, double &acc_y, double x, double y, unsigned int node_index, double s, BHTree bh_tree, Constants constants)
+{
+	std::vector<unsigned int> nodes_to_check;
+	nodes_to_check.push_back(node_index);
+	while (nodes_to_check.size() > 0)
+	{
+		Node node = bh_tree.nodes[nodes_to_check.back()];
+		nodes_to_check.pop_back();
+		// Calculate the distance between the particle and the node
+		double dx = node.centre_of_mass_x - x;
+		double dy = node.centre_of_mass_y - y;
+		double d = sqrt(dx * dx + dy * dy);
+		// If the node is a leaf, add the acceleration
+		if (node.mass == 1)
+		{
+			// Calculate and add the acceleration (mass is 1)
+			acc_x += dx / (d * d * d + constants.softening);
+			acc_y += dy / (d * d * d + constants.softening);
+		}
+		// If the node is not a leaf, check if the node is far enough to take its centre of mass
+		else
+		{
+			// Check the s/d ratio for the node
+			if (s / d < constants.theta)
+			{
+				// Calculate and add the acceleration (mass is >1)
+				acc_x += node.mass * dx / (d * d * d + constants.softening);
+				acc_y += node.mass * dy / (d * d * d + constants.softening);
+			}
+			else
+			{
+				// Recursively calculate the acceleration
+				double new_s = s / 2;
+				if (node.bottom_left)
+					nodes_to_check.push_back(node.bottom_left);
+				if (node.bottom_right)
+					nodes_to_check.push_back(node.bottom_right);
+				if (node.top_left)
+					nodes_to_check.push_back(node.top_left);
+				if (node.top_right)
+					nodes_to_check.push_back(node.top_right);
+			}
+		}
+	}
+}
+
+
 /**
  * @brief 
  * Simulates a particle system under the given constants 

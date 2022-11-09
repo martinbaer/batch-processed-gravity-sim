@@ -5,30 +5,38 @@
 
 #define ROOT_INDEX 0
 
-typedef struct Node {
+typedef struct Node
+{
 	double centre_of_mass_x;
 	double centre_of_mass_y;
-	unsigned short mass;
-	unsigned short top_left;
-	unsigned short top_right;
-	unsigned short bottom_left;
-	unsigned short bottom_right;
+	unsigned int mass;
+	unsigned int top_left;
+	unsigned int top_right;
+	unsigned int bottom_left;
+	unsigned int bottom_right;
 } Node;
 
 // Additional information on each node used in the construction of the BH tree but not the the BH tree itself
 typedef struct NodeDescriber {
-	unsigned short index;
+	unsigned int index;
 	double centre_x;
 	double centre_y;
 	double half_width;
 } NodeDescriber;
 
-void bh_tree_insert(double x, double y, std::vector<Node> &tree, NodeDescriber node_desc);
+typedef struct BHTree {
+	Node *nodes;
+	unsigned int num_nodes;
+} BHTree;
 
-void add_node_acceleration(double &acc_x, double &acc_y, double x, double y, int node_index, double s, std::vector<Node> bh_tree, Constants constants);
+void bh_tree_insert(double x, double y, BHTree &tree, NodeDescriber node_desc);
 
-void print_tree(int depth, std::vector<Node> tree, int node_index);
+void add_node_acceleration(double &acc_x, double &acc_y, double x, double y, unsigned int node_index, double s, BHTree bh_tree, Constants constants);
 
-void log_tree_size(std::vector<Node> bh_tree, Constants constants);
+void print_tree(int depth, BHTree tree, unsigned int node_index);
+
+void log_tree_size(BHTree bh_tree, Constants constants);
+
+void zero_node(BHTree &bh_tree, unsigned int node_index);
 
 #endif

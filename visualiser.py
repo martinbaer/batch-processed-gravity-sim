@@ -110,7 +110,7 @@ run_command(f"rm -r {TEMP_DIR}", ignore_error=True)
 run_command(f"mkdir {TEMP_DIR}")
 
 output_filename = f"{os.path.splitext(input_filename)[0]}.mp4"
-run_command(f"rm {output_filename}")
+run_command(f"rm {output_filename}", ignore_error=True)
 
 digits_needed = len(str(num_frames * write_interval))
 
