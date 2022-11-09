@@ -26,6 +26,103 @@
 
 #define USAGE "Usage: ./bh_serial [constants file]"
 #define NUM_ARGS 2
+#define BLOCK_SIZE 256
+
+void add_node_acceleration(double &acc_x, double &acc_y, double x, double y, unsigned int node_index, double s, BHTree bh_tree, Constants constants)
+{
+	Node node = bh_tree.nodes[node_index];
+	// Calculate the distance between the particle and the node
+	double dx = node.centre_of_mass_x - x;
+	double dy = node.centre_of_mass_y - y;
+	double d = sqrt(dx * dx + dy * dy);
+	// If the node is a leaf, add the acceleration
+	if (node.mass == 1)
+	{
+		// Calculate and add the acceleration (mass is 1)
+		acc_x += dx / (d * d * d + constants.softening);
+		acc_y += dy / (d * d * d + constants.softening);
+	}
+	// If the node is not a leaf, check if the node is far enough to take its centre of mass
+	else
+	{
+		// Check the s/d ratio for the node
+		if (s / d < constants.theta)
+		{
+			// Calculate and add the acceleration (mass is >1)
+			acc_x += node.mass * dx / (d * d * d + constants.softening);
+			acc_y += node.mass * dy / (d * d * d + constants.softening);
+		}
+		else
+		{
+			// Recursively calculate the acceleration
+			double new_s = s / 2;
+			if (node.bottom_left)
+				add_node_acceleration(acc_x, acc_y, x, y, node.bottom_left, new_s, bh_tree, constants);
+			if (node.bottom_right)
+				add_node_acceleration(acc_x, acc_y, x, y, node.bottom_right, new_s, bh_tree, constants);
+			if (node.top_left)
+				add_node_acceleration(acc_x, acc_y, x, y, node.top_left, new_s, bh_tree, constants);
+			if (node.top_right)
+				add_node_acceleration(acc_x, acc_y, x, y, node.top_right, new_s, bh_tree, constants);
+		}
+	}
+}
+
+
+__device__ add_node_acceleration_kernel(double &acc_x, double &acc_y, double x, double y, unsigned int node_index, double s, BHTree bh_tree, Constants constants)
+{
+	Node node = bh_tree.nodes[node_index];
+	// Calculate the distance between the particle and the node
+	double dx = node.centre_of_mass_x - x;
+	double dy = node.centre_of_mass_y - y;
+	double d = sqrt(dx * dx + dy * dy);
+	// If the node is a leaf, add the acceleration
+	if (node.mass == 1)
+	{
+		// Calculate and add the acceleration (mass is 1)
+		acc_x += dx / (d * d * d + constants.softening);
+		acc_y += dy / (d * d * d + constants.softening);
+	}
+	// If the node is not a leaf, check if the node is far enough to take its centre of mass
+	else
+	{
+		// Check the s/d ratio for the node
+		if (s / d < constants.theta)
+		{
+			// Calculate and add the acceleration (mass is >1)
+			acc_x += node.mass * dx / (d * d * d + constants.softening);
+			acc_y += node.mass * dy / (d * d * d + constants.softening);
+		}
+		else
+		{
+			// Recursively calculate the acceleration
+			double new_s = s / 2;
+			if (node.bottom_left)
+				add_node_acceleration_kernel(acc_x, acc_y, x, y, node.bottom_left, new_s, bh_tree, constants);
+			if (node.bottom_right)
+				add_node_acceleration_kernel(acc_x, acc_y, x, y, node.bottom_right, new_s, bh_tree, constants);
+			if (node.top_left)
+				add_node_acceleration_kernel(acc_x, acc_y, x, y, node.top_left, new_s, bh_tree, constants);
+			if (node.top_right)
+				add_node_acceleration_kernel(acc_x, acc_y, x, y, node.top_right, new_s, bh_tree, constants);
+		}
+	}
+}
+
+// Calculate the node accleration and then multiply it by gravity
+__device__ calculate_acceleration_kernel(ArrayVector2D pos, ArrayVector2D acc, BHTree bh_tree, Constants constants)
+{
+	// starting index for the thread's row
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	// Zero the acceleration
+	acc[i].x = 0;
+	acc[i].y = 0;
+	// Calculate the acceleration for the particle using iteration instead of recursion
+	
+	// Multiply by gravity
+	acc[i].x *= constants.gravity;
+	acc[i].y *= constants.gravity;
+}
 
 
 /**
@@ -66,11 +163,24 @@ int main(int argc, char *argv[])
 	vel.y = new double[constants.num_particles];
 	acc.x = new double[constants.num_particles];
 	acc.y = new double[constants.num_particles];
+	// Initialise physical vectors on the GPU
+	ArrayVector2D pos_device;
+	ArrayVector2D vel_device;
+	ArrayVector2D acc_device;
+	checkError(cudaMalloc(&pos_device.x, constants.num_particles * sizeof(double)));
+	checkError(cudaMalloc(&pos_device.y, constants.num_particles * sizeof(double)));
+	checkError(cudaMalloc(&vel_device.x, constants.num_particles * sizeof(double)));
+	checkError(cudaMalloc(&vel_device.y, constants.num_particles * sizeof(double)));
+	checkError(cudaMalloc(&acc_device.x, constants.num_particles * sizeof(double)));
+	checkError(cudaMalloc(&acc_device.y, constants.num_particles * sizeof(double)));
 
 	// Initialise the BH tree
 	BHTree bh_tree;
 	bh_tree.max_nodes = constants.num_particles * 2;
 	bh_tree.nodes = new Node[bh_tree.max_nodes];
+	// Initialise the BH tree on the GPU
+	BHTree bh_tree_device;
+	checkError(cudaMalloc(&bh_tree_device.nodes, bh_tree.max_nodes * sizeof(Node)));
 
 	// Set the initial positions, velocities and accelerations
 	for (int i = 0; i < constants.num_particles; i++)
@@ -136,14 +246,36 @@ int main(int argc, char *argv[])
 		if (constants.log_tree_size)
 			log_tree_size(bh_tree, constants);
 
+
+
+		/* Phase 2: Calculate accleration */
+
+
 		// Loop over each particle to calculate th_ acceleration: TODO CUDA
-		for (int i = 0; i < constants.num_particles; i++)
+
+		// Copy the tree to the GPU
+
+		// Reallocate the tree on the GPU if it is too small (this will only happen a couple of times)
+		if (bh_tree_device.max_nodes < bh_tree.num_nodes)
 		{
-			// Get the acceleration for the particle
-			add_node_acceleration(acc.x[i], acc.y[i], pos.x[i], pos.y[i], ROOT_INDEX, root.half_width, bh_tree, constants);
-			acc.x[i] *= constants.gravity;
-			acc.y[i] *= constants.gravity;
+			checkError(cudaFree(bh_tree_device.nodes));
+			checkError(cudaMalloc(&bh_tree_device.nodes, bh_tree.num_nodes * sizeof(Node)));
+			bh_tree_device.max_nodes = bh_tree.num_nodes;
 		}
+
+		// Copy the tree to the GPU
+		checkError(cudaMemcpy(bh_tree_device.nodes, bh_tree.nodes, bh_tree.max_nodes * sizeof(Node), cudaMemcpyHostToDevice));
+
+		// Call the CUDA kernel to calculate the acceleration
+		calculate_acceleration_kernel<<<constants.num_particles / BLOCK_SIZE + 1, BLOCK_SIZE>>>(pos_device, acc_device, bh_tree_device, constants);
+
+		// for (int i = 0; i < constants.num_particles; i++)
+		// {
+		// 	// Get the acceleration for the particle
+		// 	calc_node_acceleration(acc.x[i], acc.y[i], pos.x[i], pos.y[i], ROOT_INDEX, root.half_width, bh_tree, constants);
+		// 	acc.x[i] *= constants.gravity;
+		// 	acc.y[i] *= constants.gravity;
+		// }
 
 		// Loop over the particles to update their velocities and positions
 		for (int i = 0; i < constants.num_particles; i++)
@@ -170,6 +302,14 @@ int main(int argc, char *argv[])
 	delete[] acc.x;
 	delete[] acc.y;
 	delete[] bh_tree.nodes;
+	// Free memory on the GPU
+	checkError(cudaFree(pos_device.x));
+	checkError(cudaFree(pos_device.y));
+	checkError(cudaFree(vel_device.x));
+	checkError(cudaFree(vel_device.y));
+	checkError(cudaFree(acc_device.x));
+	checkError(cudaFree(acc_device.y));
+	checkError(cudaFree(bh_tree_device.nodes));
 
 	// Stop the timer
 	auto end = std::chrono::high_resolution_clock::now();

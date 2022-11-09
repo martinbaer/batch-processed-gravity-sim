@@ -26,6 +26,12 @@ bh_tree.o: bh_tree.h helpers.h
 %: %.cpp
 	$(CXX) $(CXXFLAGS) $(filter %.o %.cpp, $^) -o $@
 
+%.o: %.cu
+	$(NVCC) $(NVFLAGS) -c $< -o $@
+
+%: %.cu
+ 	$(NVCC) $(NVFLAGS) $(filter %.o %.cu, $^) -o $@
+
 # rules
 all: $(TARGETS)
 
