@@ -36,7 +36,7 @@ bool energy_log_open = false;
  * @param velocities 
  * @param constants 
  */
-void log_energy_conservation(std::vector<double> pos_x, std::vector<double> pos_y, std::vector<double> vel_x, std::vector<double> vel_y, Constants constants)
+void log_energy_conservation(ArrayVector2D pos, ArrayVector2D vel, Constants constants)
 {
 	if (!energy_log_open)
 	{
@@ -48,7 +48,7 @@ void log_energy_conservation(std::vector<double> pos_x, std::vector<double> pos_
 	double kinetic_energy = 0;
 	for (int i = 0; i < constants.num_particles; i++)
 	{
-		kinetic_energy += 0.5 * (vel_x[i] * vel_x[i] + vel_y[i] * vel_y[i]);
+		kinetic_energy += 0.5 * (vel.x[i] * vel.x[i] + vel.y[i] * vel.y[i]);
 	}
 	// Calculate the total potential energy
 	// Formula: -G * m1 * m2 / r
@@ -57,8 +57,8 @@ void log_energy_conservation(std::vector<double> pos_x, std::vector<double> pos_
 	{
 		for (int j = i + 1; j < constants.num_particles; j++)
 		{
-			double dx = pos_x[i] - pos_x[j];
-			double dy = pos_y[i] - pos_y[j];
+			double dx = pos.x[i] - pos.x[j];
+			double dy = pos.y[i] - pos.y[j];
 			double r = sqrt(dx * dx + dy * dy);
 			potential_energy -= constants.gravity / (r + constants.softening);
 		}
@@ -76,10 +76,12 @@ void log_energy_conservation(std::vector<double> pos_x, std::vector<double> pos_
  * @param output_file given binary output file
  * @param positions vector of particle positions
  */
-void write_positions(std::ofstream &output_file, std::vector<double> pos_x, std::vector<double> pos_y, Constants constants)
+void write_positions(std::ofstream &output_file, ArrayVector2D pos, Constants constants)
 {
-	output_file.write((char *)&(pos_x)[0], constants.num_particles * sizeof(double));
-	output_file.write((char *)&(pos_y)[0], constants.num_particles * sizeof(double));
+	for (int i = 0; i < constants.num_particles; i++)
+		output_file.write((char *)&pos.x[i], sizeof(double));
+	for (int i = 0; i < constants.num_particles; i++)
+		output_file.write((char *)&pos.y[i], sizeof(double));
 }
 
 /**
@@ -205,10 +207,11 @@ void parse_constants(std::string filename, Constants &constants)
 					exit(1);
 				}
 				// Initialize the vectors
-				constants.init_pos_x = std::vector<double>(constants.num_particles);
-				constants.init_pos_y = std::vector<double>(constants.num_particles);
+				constants.init_pos.x = new double[constants.num_particles];
+				constants.init_pos.y = new double[constants.num_particles];
 				// Read the file
 				std::string init_pos_line;
+				int i = 0;
 				while (std::getline(init_pos_file, init_pos_line))
 				{
 					// Get the x and y values
@@ -218,8 +221,8 @@ void parse_constants(std::string filename, Constants &constants)
 					double x_d = std::stod(x);
 					double y_d = std::stod(y);
 					// Add the values to the vectors
-					constants.init_pos_x.push_back(x_d);
-					constants.init_pos_y.push_back(y_d);
+					constants.init_pos.x[i] = x_d;
+					constants.init_pos.y[i++] = y_d;
 				}
 			}
 		}
@@ -229,15 +232,15 @@ void parse_constants(std::string filename, Constants &constants)
 void gen_random_points(Constants &constants)
 {
 	// Initialise vectors
-	constants.init_pos_x = std::vector<double>(constants.num_particles);
-	constants.init_pos_y = std::vector<double>(constants.num_particles);
+	constants.init_pos.x = new double[constants.num_particles];
+	constants.init_pos.y = new double[constants.num_particles];
 	// Initialise random number generator
 	std::uniform_real_distribution<double> unif(0, RANDOM_SIZE);
 	std::default_random_engine re;
 	// Generate random points
 	for (int i = 0; i < constants.num_particles; i++)
 	{
-		constants.init_pos_x[i] = unif(re);
-		constants.init_pos_y[i] = unif(re);
+		constants.init_pos.x[i] = unif(re);
+		constants.init_pos.y[i] = unif(re);
 	}
 }

@@ -28,95 +28,6 @@
 #define NUM_ARGS 2
 
 
-void add_node_acceleration(double &acc_x, double &acc_y, double x, double y, unsigned int node_index, double s, BHTree bh_tree, Constants constants)
-{
-	Node node = bh_tree.nodes[node_index];
-	// Calculate the distance between the particle and the node
-	double dx = node.centre_of_mass_x - x;
-	double dy = node.centre_of_mass_y - y;
-	double d = sqrt(dx * dx + dy * dy);
-	// If the node is a leaf, add the acceleration
-	if (node.mass == 1)
-	{
-		// Calculate and add the acceleration (mass is 1)
-		acc_x += dx / (d * d * d + constants.softening);
-		acc_y += dy / (d * d * d + constants.softening);
-	}
-	// If the node is not a leaf, check if the node is far enough to take its centre of mass
-	else
-	{
-		// Check the s/d ratio for the node
-		if (s / d < constants.theta)
-		{
-			// Calculate and add the acceleration (mass is >1)
-			acc_x += node.mass * dx / (d * d * d + constants.softening);
-			acc_y += node.mass * dy / (d * d * d + constants.softening);
-		}
-		else
-		{
-			// Recursively calculate the acceleration
-			double new_s = s / 2;
-			if (node.bottom_left)
-				add_node_acceleration(acc_x, acc_y, x, y, node.bottom_left, new_s, bh_tree, constants);
-			if (node.bottom_right)
-				add_node_acceleration(acc_x, acc_y, x, y, node.bottom_right, new_s, bh_tree, constants);
-			if (node.top_left)
-				add_node_acceleration(acc_x, acc_y, x, y, node.top_left, new_s, bh_tree, constants);
-			if (node.top_right)
-				add_node_acceleration(acc_x, acc_y, x, y, node.top_right, new_s, bh_tree, constants);
-		}
-	}
-}
-
-
-// add_node_acceleration but iterative instead of recursive
-void add_node_acceleration_iterative(double &acc_x, double &acc_y, double x, double y, unsigned int node_index, double s, BHTree bh_tree, Constants constants)
-{
-	std::vector<unsigned int> nodes_to_check;
-	nodes_to_check.push_back(node_index);
-	while (nodes_to_check.size() > 0)
-	{
-		Node node = bh_tree.nodes[nodes_to_check.back()];
-		nodes_to_check.pop_back();
-		// Calculate the distance between the particle and the node
-		double dx = node.centre_of_mass_x - x;
-		double dy = node.centre_of_mass_y - y;
-		double d = sqrt(dx * dx + dy * dy);
-		// If the node is a leaf, add the acceleration
-		if (node.mass == 1)
-		{
-			// Calculate and add the acceleration (mass is 1)
-			acc_x += dx / (d * d * d + constants.softening);
-			acc_y += dy / (d * d * d + constants.softening);
-		}
-		// If the node is not a leaf, check if the node is far enough to take its centre of mass
-		else
-		{
-			// Check the s/d ratio for the node
-			if (s / d < constants.theta)
-			{
-				// Calculate and add the acceleration (mass is >1)
-				acc_x += node.mass * dx / (d * d * d + constants.softening);
-				acc_y += node.mass * dy / (d * d * d + constants.softening);
-			}
-			else
-			{
-				// Recursively calculate the acceleration
-				double new_s = s / 2;
-				if (node.bottom_left)
-					nodes_to_check.push_back(node.bottom_left);
-				if (node.bottom_right)
-					nodes_to_check.push_back(node.bottom_right);
-				if (node.top_left)
-					nodes_to_check.push_back(node.top_left);
-				if (node.top_right)
-					nodes_to_check.push_back(node.top_right);
-			}
-		}
-	}
-}
-
-
 /**
  * @brief 
  * Simulates a particle system under the given constants 
@@ -136,13 +47,6 @@ int main(int argc, char *argv[])
 	// Parse the constants file
 	Constants constants;
 	parse_constants(argv[1], constants);
-	// Check that the number of particles does not exceed the limitations of data types
-	// (the BH tree must store pointers to the children of each node)
-	if (2 * constants.num_particles > UINT_MAX)
-	{
-		std::cerr << "Error: Too many particles for BH tree: " << constants.num_particles << " * 2 > " << USHRT_MAX << std::endl;
-		return 1;
-	}
 	// Initialise the output file
 	std::ofstream output_file(constants.output_filename);
 	// Check if the file opened
@@ -151,62 +55,69 @@ int main(int argc, char *argv[])
 		std::cerr << "Error opening file " << argv[2] << std::endl;
 		return 1;
 	}
+
 	// Initialise physical vectors
-	std::vector<double> pos_x = std::vector<double>(constants.num_particles);
-	std::vector<double> pos_y = std::vector<double>(constants.num_particles);
-	std::vector<double> vel_x = std::vector<double>(constants.num_particles);
-	std::vector<double> vel_y = std::vector<double>(constants.num_particles);
-	std::vector<double> acc_x = std::vector<double>(constants.num_particles);
-	std::vector<double> acc_y = std::vector<double>(constants.num_particles);
+	ArrayVector2D pos;
+	ArrayVector2D vel;
+	ArrayVector2D acc;
+	pos.x = new double[constants.num_particles];
+	pos.y = new double[constants.num_particles];
+	vel.x = new double[constants.num_particles];
+	vel.y = new double[constants.num_particles];
+	acc.x = new double[constants.num_particles];
+	acc.y = new double[constants.num_particles];
 
 	// Initialise the BH tree
 	BHTree bh_tree;
-	bh_tree.nodes = new Node[constants.num_particles * 2];
+	bh_tree.max_nodes = constants.num_particles * 2;
+	bh_tree.nodes = new Node[bh_tree.max_nodes];
 
 	// Set the initial positions, velocities and accelerations
 	for (int i = 0; i < constants.num_particles; i++)
 	{
-		pos_x[i] = constants.init_pos_x[i];
-		pos_y[i] = constants.init_pos_y[i];
-		vel_x[i] = 0;
-		vel_y[i] = 0;
-		acc_x[i] = 0;
-		acc_y[i] = 0;
+		pos.x[i] = constants.init_pos.x[i];
+		pos.y[i] = constants.init_pos.y[i];
+		vel.x[i] = 0;
+		vel.y[i] = 0;
+		acc.x[i] = 0;
+		acc.y[i] = 0;
 	}
-	constants.init_pos_x.clear();
-	constants.init_pos_y.clear();
+	// Delete the initial positions in the constants struct
+	delete[] constants.init_pos.x;
+	delete[] constants.init_pos.y;
 
 	// Loop over the number of steps
 	for (int step = 0; step < constants.num_steps; step++)
 	{
 		// Write the positions to the binary output file
 		if (step % constants.write_interval == 0)
-			write_positions(output_file, pos_x, pos_y, constants);
+			write_positions(output_file, pos, constants);
 		// Check the energy conservation
 		if (constants.log_energy_conservation) 
-			log_energy_conservation(pos_x, pos_y, vel_x, vel_y, constants);
+			log_energy_conservation(pos, vel, constants);
 
 		// Calculate the bounds of the simulation : TODO AVX using _mm256_cmp_pd (and MPI)
-		double min_x = pos_x[0];
-		double max_x = pos_x[0];
-		double min_y = pos_y[0];
-		double max_y = pos_y[0];
+		double min_x = pos.x[0];
+		double max_x = pos.x[0];
+		double min_y = pos.y[0];
+		double max_y = pos.y[0];
 		for (int i = 1; i < constants.num_particles; i++)
 		{
-			if (pos_x[i] < min_x)
-				min_x = pos_x[i];
-			else if (pos_x[i] > max_x)
-				max_x = pos_x[i];
-			if (pos_y[i] < min_y)
-				min_y = pos_y[i];
-			else if (pos_y[i] > max_y)
-				max_y = pos_y[i];
+			if (pos.x[i] < min_x)
+				min_x = pos.x[i];
+			else if (pos.x[i] > max_x)
+				max_x = pos.x[i];
+			if (pos.y[i] < min_y)
+				min_y = pos.y[i];
+			else if (pos.y[i] > max_y)
+				max_y = pos.y[i];
 		}
 
 		// Create tree : TODO MPI by distrubiting particles, creating trees and merging them
 
 		// Create root node info
 		NodeDescriber root;
+		root.index = ROOT_INDEX;
 		root.centre_x = (max_x + min_x) / 2;
 		root.centre_y = (max_y + min_y) / 2;
 		root.half_width = max_x - min_x < max_y - min_y ? (max_y - min_y) / 2 : (max_x - min_x) / 2;
@@ -216,7 +127,7 @@ int main(int argc, char *argv[])
 		// Add each particle to the barnes-hut tree
 		for (int i = 0; i < constants.num_particles; i++)
 		{
-			bh_tree_insert(pos_x[i], pos_y[i], bh_tree, root);
+			bh_tree_insert(pos.x[i], pos.y[i], bh_tree, root);
 		}
 		// Print tree
 		// print_tree(0, bh_tree, TREE_ROOT);
@@ -229,35 +140,35 @@ int main(int argc, char *argv[])
 		for (int i = 0; i < constants.num_particles; i++)
 		{
 			// Get the acceleration for the particle
-			add_node_acceleration(acc_x[i], acc_y[i], pos_x[i], pos_y[i], ROOT_INDEX, root.half_width, bh_tree, constants);
-			acc_x[i] *= constants.gravity;
-			acc_y[i] *= constants.gravity;
+			add_node_acceleration(acc.x[i], acc.y[i], pos.x[i], pos.y[i], ROOT_INDEX, root.half_width, bh_tree, constants);
+			acc.x[i] *= constants.gravity;
+			acc.y[i] *= constants.gravity;
 		}
 
 		// Loop over the particles to update their velocities and positions
 		for (int i = 0; i < constants.num_particles; i++)
 		{
 			// Update the velocity
-			vel_x[i] += acc_x[i] * constants.delta_t;
-			vel_y[i] += acc_y[i] * constants.delta_t;
+			vel.x[i] += acc.x[i] * constants.delta_t;
+			vel.y[i] += acc.y[i] * constants.delta_t;
 			// Update the position
-			pos_x[i] += vel_x[i] * constants.delta_t;
-			pos_y[i] += vel_y[i] * constants.delta_t;
+			pos.x[i] += vel.x[i] * constants.delta_t;
+			pos.y[i] += vel.y[i] * constants.delta_t;
 			// Reset the acceleration
-			acc_x[i] = 0;
-			acc_y[i] = 0;
+			acc.x[i] = 0;
+			acc.y[i] = 0;
 		}
 	}
 
 	// Close output file
 	output_file.close();
 	// Free memory
-	pos_x.clear();
-	pos_y.clear();
-	vel_x.clear();
-	vel_y.clear();
-	acc_x.clear();
-	acc_y.clear();
+	delete[] pos.x;
+	delete[] pos.y;
+	delete[] vel.x;
+	delete[] vel.y;
+	delete[] acc.x;
+	delete[] acc.y;
 	delete[] bh_tree.nodes;
 
 	// Stop the timer

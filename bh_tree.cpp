@@ -19,9 +19,29 @@
 
 #define TREE_SIZE_LOG_FILENAME "output/tree_size_log.txt"
 
+#define REALLOCATE_FACTOR 1.2
+
 
 std::ofstream tree_size_log(TREE_SIZE_LOG_FILENAME);
 bool tree_size_log_open = false;
+
+// increase the size of the nodes array in the BHTree by a factor of REALLOCATE_FACTOR
+// This could be more efficient though it will only occur a few times
+inline void reallocate_tree(BHTree &tree)
+{
+	Node* nodes = new Node[tree.max_nodes];
+	for (int i = 0; i < tree.num_nodes; i++)
+	{
+		nodes[i] = tree.nodes[i];
+	}
+	delete[] tree.nodes;
+	tree.max_nodes *= REALLOCATE_FACTOR;
+	tree.nodes = new Node[tree.max_nodes];
+	for (int i = 0; i < tree.num_nodes; i++)
+	{
+		tree.nodes[i] = nodes[i];
+	}
+}
 
 
 /**
@@ -31,7 +51,7 @@ bool tree_size_log_open = false;
  * @param acc_x 
  * @param acc_x 
  * @param x 
- * @param y 
+ * @param y
  */
 void add_node_acceleration(double &acc_x, double &acc_y, double x, double y, unsigned int node_index, double s, BHTree bh_tree, Constants constants)
 {
@@ -197,6 +217,9 @@ NodeDescriber get_child(double x, double y, BHTree &tree, NodeDescriber parent_n
 			// Create the top left quadrant
 			// Get the next available index
 			child_node_desc.index = tree.num_nodes++;
+			// Reallocate the tree to fit the new node
+			if (tree.num_nodes > tree.max_nodes)
+				reallocate_tree(tree);
 			// Tell the parent node about the child node
 			tree.nodes[parent_index].top_left = child_node_desc.index;
 			// Initialise the child node
@@ -219,6 +242,9 @@ NodeDescriber get_child(double x, double y, BHTree &tree, NodeDescriber parent_n
 			// Create the top right quadrant
 			// Get the next available index
 			child_node_desc.index = tree.num_nodes++;
+			// Reallocate the tree to fit the new node
+			if (tree.num_nodes > tree.max_nodes)
+				reallocate_tree(tree);
 			// Tell the parent node about the child node
 			tree.nodes[parent_index].top_right = child_node_desc.index;
 			// Initialise the child node
@@ -241,6 +267,9 @@ NodeDescriber get_child(double x, double y, BHTree &tree, NodeDescriber parent_n
 			// Create the bottom left quadrant
 			// Get the next available index
 			child_node_desc.index = tree.num_nodes++;
+			// Reallocate the tree to fit the new node
+			if (tree.num_nodes > tree.max_nodes)
+				reallocate_tree(tree);
 			// Tell the parent node about the child node
 			tree.nodes[parent_index].bottom_left = child_node_desc.index;
 			// Initialise the child node
@@ -263,6 +292,9 @@ NodeDescriber get_child(double x, double y, BHTree &tree, NodeDescriber parent_n
 			// Create the bottom right quadrant
 			// Get the next available index
 			child_node_desc.index = tree.num_nodes++;
+			// Reallocate the tree to fit the new node
+			if (tree.num_nodes > tree.max_nodes)
+				reallocate_tree(tree);
 			// Tell the parent node about the child node
 			tree.nodes[parent_index].bottom_right = child_node_desc.index;
 			// Initialise the child node

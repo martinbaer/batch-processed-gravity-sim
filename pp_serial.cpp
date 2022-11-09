@@ -54,35 +54,39 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 	// Initialise physical vectors
-	std::vector<double> pos_x = std::vector<double>(constants.num_particles);
-	std::vector<double> pos_y = std::vector<double>(constants.num_particles);
-	std::vector<double> vel_x = std::vector<double>(constants.num_particles);
-	std::vector<double> vel_y = std::vector<double>(constants.num_particles);
-	std::vector<double> acc_x = std::vector<double>(constants.num_particles);
-	std::vector<double> acc_y = std::vector<double>(constants.num_particles);
+	ArrayVector2D pos;
+	ArrayVector2D vel;
+	ArrayVector2D acc;
+	pos.x = new double[constants.num_particles];
+	pos.y = new double[constants.num_particles];
+	vel.x = new double[constants.num_particles];
+	vel.y = new double[constants.num_particles];
+	acc.x = new double[constants.num_particles];
+	acc.y = new double[constants.num_particles];
 
 	// Set the initial positions, velocities and accelerations
 	for (int i = 0; i < constants.num_particles; i++)
 	{
-		pos_x[i] = constants.init_pos_x[i];
-		pos_y[i] = constants.init_pos_y[i];
-		vel_x[i] = 0;
-		vel_y[i] = 0;
-		acc_x[i] = 0;
-		acc_y[i] = 0;
+		pos.x[i] = constants.init_pos.x[i];
+		pos.y[i] = constants.init_pos.y[i];
+		vel.x[i] = 0;
+		vel.y[i] = 0;
+		acc.x[i] = 0;
+		acc.y[i] = 0;
 	}
-	constants.init_pos_x.clear();
-	constants.init_pos_y.clear();
+	// Delete the initial positions from the constants struct
+	delete[] constants.init_pos.x;
+	delete[] constants.init_pos.y;
 
 	// Loop over the number of steps
 	for (int step = 0; step < constants.num_steps; step++)
 	{
 		// Write the positions to the binary output file
 		if (step % constants.write_interval == 0)
-			write_positions(output_file, pos_x, pos_y, constants);
+			write_positions(output_file, pos, constants);
 		// Check the energy conservation
 		if (constants.log_energy_conservation) 
-			log_energy_conservation(pos_x, pos_y, vel_x, vel_y, constants);
+			log_energy_conservation(pos, vel, constants);
 		// Loop over the particles
 		for (int i = 0; i < constants.num_particles; i++)
 		{
@@ -95,38 +99,38 @@ int main(int argc, char *argv[])
 					continue;
 				}
 				// Calculate the distance between the particles
-				double dx = pos_x[j] - pos_x[i];
-				double dy = pos_y[j] - pos_y[i];
+				double dx = pos.x[j] - pos.x[i];
+				double dy = pos.y[j] - pos.y[i];
 				double r = sqrt(dx * dx + dy * dy);
 				// Calculate and cumulatively sum the acceleration
-				acc_x[i] += constants.gravity * dx / (r * r * r + constants.softening);
-				acc_y[i] += constants.gravity * dy / (r * r * r + constants.softening);
+				acc.x[i] += constants.gravity * dx / (r * r * r + constants.softening);
+				acc.y[i] += constants.gravity * dy / (r * r * r + constants.softening);
 			}
 		}
 		// Loop over the particles
 		for (int i = 0; i < constants.num_particles; i++)
 		{
 			// Update the velocity
-			vel_x[i] += acc_x[i] * constants.delta_t;
-			vel_y[i] += acc_y[i] * constants.delta_t;
+			vel.x[i] += acc.x[i] * constants.delta_t;
+			vel.y[i] += acc.y[i] * constants.delta_t;
 			// Update the position
-			pos_x[i] += vel_x[i] * constants.delta_t;
-			pos_y[i] += vel_y[i] * constants.delta_t;
+			pos.x[i] += vel.x[i] * constants.delta_t;
+			pos.y[i] += vel.y[i] * constants.delta_t;
 			// Reset the acceleration
-			acc_x[i] = 0;
-			acc_y[i] = 0;
+			acc.x[i] = 0;
+			acc.y[i] = 0;
 		}
 	}
 
 	// Close output file
 	output_file.close();
 	// Free memory
-	pos_x.clear();
-	pos_y.clear();
-	vel_x.clear();
-	vel_y.clear();
-	acc_x.clear();
-	acc_y.clear();
+	delete[] pos.x;
+	delete[] pos.y;
+	delete[] vel.x;
+	delete[] vel.y;
+	delete[] acc.x;
+	delete[] acc.y;
 
 	// stop timer
 	auto stop = std::chrono::high_resolution_clock::now();

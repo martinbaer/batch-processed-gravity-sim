@@ -27,6 +27,7 @@ typedef struct NodeDescriber {
 typedef struct BHTree {
 	Node *nodes;
 	unsigned int num_nodes;
+	unsigned int max_nodes;
 } BHTree;
 
 void bh_tree_insert(double x, double y, BHTree &tree, NodeDescriber node_desc);
@@ -36,6 +37,8 @@ void add_node_acceleration(double &acc_x, double &acc_y, double x, double y, uns
 void print_tree(int depth, BHTree tree, unsigned int node_index);
 
 void log_tree_size(BHTree bh_tree, Constants constants);
+
+inline void reallocate_tree(BHTree &tree);
 
 void zero_node(BHTree &bh_tree, unsigned int node_index);
 
