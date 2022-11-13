@@ -21,6 +21,9 @@
 #include <vector>
 #include <math.h>
 #include <limits>
+#include <iomanip>
+#include <sstream>
+#include <chrono>
 
 #include "bh_tree.h"
 
@@ -28,100 +31,134 @@
 #define NUM_ARGS 2
 #define BLOCK_SIZE 256
 
-void add_node_acceleration(double &acc_x, double &acc_y, double x, double y, unsigned int node_index, double s, BHTree bh_tree, Constants constants)
+#define QUEUE_EXPANSION_FACTOR 1.5
+
+void checkError(cudaError_t e)
 {
-	Node node = bh_tree.nodes[node_index];
-	// Calculate the distance between the particle and the node
-	double dx = node.centre_of_mass_x - x;
-	double dy = node.centre_of_mass_y - y;
-	double d = sqrt(dx * dx + dy * dy);
-	// If the node is a leaf, add the acceleration
-	if (node.mass == 1)
-	{
-		// Calculate and add the acceleration (mass is 1)
-		acc_x += dx / (d * d * d + constants.softening);
-		acc_y += dy / (d * d * d + constants.softening);
-	}
-	// If the node is not a leaf, check if the node is far enough to take its centre of mass
-	else
-	{
-		// Check the s/d ratio for the node
-		if (s / d < constants.theta)
-		{
-			// Calculate and add the acceleration (mass is >1)
-			acc_x += node.mass * dx / (d * d * d + constants.softening);
-			acc_y += node.mass * dy / (d * d * d + constants.softening);
-		}
-		else
-		{
-			// Recursively calculate the acceleration
-			double new_s = s / 2;
-			if (node.bottom_left)
-				add_node_acceleration(acc_x, acc_y, x, y, node.bottom_left, new_s, bh_tree, constants);
-			if (node.bottom_right)
-				add_node_acceleration(acc_x, acc_y, x, y, node.bottom_right, new_s, bh_tree, constants);
-			if (node.top_left)
-				add_node_acceleration(acc_x, acc_y, x, y, node.top_left, new_s, bh_tree, constants);
-			if (node.top_right)
-				add_node_acceleration(acc_x, acc_y, x, y, node.top_right, new_s, bh_tree, constants);
-		}
-	}
+   if (e != cudaSuccess)
+   {
+      std::cerr << "CUDA error: " << int(e) << " : " << cudaGetErrorString(e) << '\n';
+      abort();
+   }
 }
 
 
-__device__ add_node_acceleration_kernel(double &acc_x, double &acc_y, double x, double y, unsigned int node_index, double s, BHTree bh_tree, Constants constants)
+typedef struct QueuedNode
 {
-	Node node = bh_tree.nodes[node_index];
-	// Calculate the distance between the particle and the node
-	double dx = node.centre_of_mass_x - x;
-	double dy = node.centre_of_mass_y - y;
-	double d = sqrt(dx * dx + dy * dy);
-	// If the node is a leaf, add the acceleration
-	if (node.mass == 1)
+   unsigned int tree_index;
+   double s;
+} QueuedNode;
+
+typedef struct CircularArrayQueue
+{
+   QueuedNode *data;
+   int num_elements;
+   int max_elements;
+   int head;
+   int tail;
+} CircularArrayQueue;
+
+__device__ void enqueue(CircularArrayQueue &queue, unsigned int tree_index, double s)
+{
+	int new_tail = (queue.tail + 1) % queue.max_elements;
+	// Expand the queue if needed (this should only occur a few times)
+	if (new_tail == queue.head)
 	{
-		// Calculate and add the acceleration (mass is 1)
-		acc_x += dx / (d * d * d + constants.softening);
-		acc_y += dy / (d * d * d + constants.softening);
-	}
-	// If the node is not a leaf, check if the node is far enough to take its centre of mass
-	else
-	{
-		// Check the s/d ratio for the node
-		if (s / d < constants.theta)
+		// Copy the queue data to a temporary array
+		QueuedNode *temp_data = new QueuedNode[queue.max_elements];
+		for (int i = 0; i < queue.max_elements; i++)
 		{
-			// Calculate and add the acceleration (mass is >1)
-			acc_x += node.mass * dx / (d * d * d + constants.softening);
-			acc_y += node.mass * dy / (d * d * d + constants.softening);
+			temp_data[i] = queue.data[i];
 		}
-		else
+		// Delete the queue data
+		delete[] queue.data;
+		// Reallocate the queue
+		queue.max_elements = queue.max_elements * QUEUE_EXPANSION_FACTOR;
+		queue.data = new QueuedNode[queue.max_elements];
+		// Copy the data back from the temporary array
+		for (int i = 0; i < queue.max_elements; i++)
 		{
-			// Recursively calculate the acceleration
-			double new_s = s / 2;
-			if (node.bottom_left)
-				add_node_acceleration_kernel(acc_x, acc_y, x, y, node.bottom_left, new_s, bh_tree, constants);
-			if (node.bottom_right)
-				add_node_acceleration_kernel(acc_x, acc_y, x, y, node.bottom_right, new_s, bh_tree, constants);
-			if (node.top_left)
-				add_node_acceleration_kernel(acc_x, acc_y, x, y, node.top_left, new_s, bh_tree, constants);
-			if (node.top_right)
-				add_node_acceleration_kernel(acc_x, acc_y, x, y, node.top_right, new_s, bh_tree, constants);
+			queue.data[i] = temp_data[i];
 		}
+		// Delete the temporary array
+		delete[] temp_data;
 	}
+	// Add the value to the queue
+	queue.data[new_tail].tree_index = tree_index;
+	queue.data[new_tail].s = s;
+	queue.tail = new_tail;
+	queue.num_elements++;
 }
 
-// Calculate the node accleration and then multiply it by gravity
-__device__ calculate_acceleration_kernel(ArrayVector2D pos, ArrayVector2D acc, BHTree bh_tree, Constants constants)
+__device__ QueuedNode dequeue(CircularArrayQueue &queue)
 {
-	// starting index for the thread's row
-	int i = blockIdx.x * blockDim.x + threadIdx.x;
-	// Zero the acceleration
-	acc[i].x = 0;
-	acc[i].y = 0;
-	// Calculate the acceleration for the particle using iteration instead of recursion
-	
-	// Multiply by gravity
-	acc[i].x *= constants.gravity;
-	acc[i].y *= constants.gravity;
+	// Get the value at the head of the queue
+	QueuedNode head = queue.data[queue.head];
+	// Move the head of the queue
+	queue.head = (queue.head - 1) % queue.max_elements;
+	queue.num_elements--;
+	return head;
+}
+
+// Calculate the node accleration and then multiply it by gravity 
+__global__ void calculate_acceleration_kernel(ArrayVector2D pos, ArrayVector2D acc, BHTree bh_tree, double root_half_width, Constants constants)
+{
+	int thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+	if (thread_id < constants.num_particles)
+		return;
+	// Create queue
+	CircularArrayQueue queue;
+	int expected_size = (int)__log2f(bh_tree.num_nodes);
+	queue.data = new QueuedNode[expected_size];
+	queue.num_elements = 0;
+	queue.max_elements = expected_size;
+	queue.head = 0;
+	queue.tail = 0;
+	// Add the root node to the queue
+	enqueue(queue, ROOT_INDEX, root_half_width);
+	// Add node acceleration to the acceleration of the particle
+	while (queue.num_elements > 0)
+	{
+		// Get the next node from the queue
+		QueuedNode node = dequeue(queue);
+		// Calculate the distance between the particle and the node
+		double dx = bh_tree.nodes[node.tree_index].centre_of_mass_x - pos.x[thread_id];
+		double dy = bh_tree.nodes[node.tree_index].centre_of_mass_y - pos.y[thread_id];
+		double d = sqrt(dx * dx + dy * dy);
+		// If the node is a leaf, add the acceleration
+		if (bh_tree.nodes[node.tree_index].mass == 1)
+		{
+			// Calculate and add the acceleration (mass is 1)
+			acc.x[thread_id] += constants.gravity * dx / (d * d * d + constants.softening);
+			acc.y[thread_id] += constants.gravity * dy / (d * d * d + constants.softening);
+		}
+		else // Check if the node is far enough to take its centre of mass
+		{
+			// Check the s/d ratio for the node
+			if (node.s / d < constants.theta)
+			{
+				// Calculate and add the acceleration
+				acc.x[thread_id] += constants.gravity * bh_tree.nodes[node.tree_index].mass * dx / (d * d * d + constants.softening);
+				acc.y[thread_id] += constants.gravity * bh_tree.nodes[node.tree_index].mass * dy / (d * d * d + constants.softening);
+			}
+			else // Add the children to the queue
+			{
+				// Add the children to the queue
+				double child_s = node.s / 2;
+				if (bh_tree.nodes[node.tree_index].bottom_left)
+					enqueue(queue, bh_tree.nodes[node.tree_index].bottom_left, child_s);
+				if (bh_tree.nodes[node.tree_index].bottom_right)
+					enqueue(queue, bh_tree.nodes[node.tree_index].bottom_right, child_s);
+				if (bh_tree.nodes[node.tree_index].top_left)
+					enqueue(queue, bh_tree.nodes[node.tree_index].top_left, child_s);
+				if (bh_tree.nodes[node.tree_index].top_right)
+					enqueue(queue, bh_tree.nodes[node.tree_index].top_right, child_s);
+			}
+		}
+	}
+	// Multiply the acceleration by gravity
+	acc.x[thread_id] *= constants.gravity;
+	acc.y[thread_id] *= constants.gravity;
 }
 
 
@@ -149,7 +186,7 @@ int main(int argc, char *argv[])
 	// Check if the file opened
 	if (!output_file.is_open())
 	{
-		std::cerr << "Error opening file " << argv[2] << std::endl;
+		std::cerr << "Error opening file: " << argv[2] << std::endl;
 		return 1;
 	}
 
@@ -167,6 +204,7 @@ int main(int argc, char *argv[])
 	ArrayVector2D pos_device;
 	ArrayVector2D vel_device;
 	ArrayVector2D acc_device;
+
 	checkError(cudaMalloc(&pos_device.x, constants.num_particles * sizeof(double)));
 	checkError(cudaMalloc(&pos_device.y, constants.num_particles * sizeof(double)));
 	checkError(cudaMalloc(&vel_device.x, constants.num_particles * sizeof(double)));
@@ -250,11 +288,6 @@ int main(int argc, char *argv[])
 
 		/* Phase 2: Calculate accleration */
 
-
-		// Loop over each particle to calculate th_ acceleration: TODO CUDA
-
-		// Copy the tree to the GPU
-
 		// Reallocate the tree on the GPU if it is too small (this will only happen a couple of times)
 		if (bh_tree_device.max_nodes < bh_tree.num_nodes)
 		{
@@ -262,20 +295,16 @@ int main(int argc, char *argv[])
 			checkError(cudaMalloc(&bh_tree_device.nodes, bh_tree.num_nodes * sizeof(Node)));
 			bh_tree_device.max_nodes = bh_tree.num_nodes;
 		}
-
 		// Copy the tree to the GPU
 		checkError(cudaMemcpy(bh_tree_device.nodes, bh_tree.nodes, bh_tree.max_nodes * sizeof(Node), cudaMemcpyHostToDevice));
 
-		// Call the CUDA kernel to calculate the acceleration
-		calculate_acceleration_kernel<<<constants.num_particles / BLOCK_SIZE + 1, BLOCK_SIZE>>>(pos_device, acc_device, bh_tree_device, constants);
+		// Copy the positions to the GPU
+		checkError(cudaMemcpy(pos_device.x, pos.x, constants.num_particles * sizeof(double), cudaMemcpyHostToDevice));
+		checkError(cudaMemcpy(pos_device.y, pos.y, constants.num_particles * sizeof(double), cudaMemcpyHostToDevice));
 
-		// for (int i = 0; i < constants.num_particles; i++)
-		// {
-		// 	// Get the acceleration for the particle
-		// 	calc_node_acceleration(acc.x[i], acc.y[i], pos.x[i], pos.y[i], ROOT_INDEX, root.half_width, bh_tree, constants);
-		// 	acc.x[i] *= constants.gravity;
-		// 	acc.y[i] *= constants.gravity;
-		// }
+		// Call the CUDA kernel to calculate the acceleration pos_device.x, pos_device.y, acc_device.x, acc_device.y, bh_tree_device.nodes, root.half_width, 
+		calculate_acceleration_kernel<<<constants.num_particles / BLOCK_SIZE + 1, BLOCK_SIZE>>>(pos_device, acc_device, bh_tree_device, root.half_width, constants);
+
 
 		// Loop over the particles to update their velocities and positions
 		for (int i = 0; i < constants.num_particles; i++)

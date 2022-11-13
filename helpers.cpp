@@ -101,7 +101,7 @@ void write_positions(std::ofstream &output_file, ArrayVector2D pos, Constants co
  * @param filename name of file to parse
  * @param constants struct to store constants in
  */
-void parse_constants(std::string filename, Constants &constants)
+void parse_constants(std::string filename, Constants &constants, bool get_init_pos)
 {
 	// Open the file
 	std::ifstream file(filename);
@@ -185,7 +185,7 @@ void parse_constants(std::string filename, Constants &constants)
 			// Get the value of the constant
 			constants.output_filename = line.substr(line.find('=') + 1);
 		}
-		else if (line.find("init_pos") != std::string::npos)
+		else if (line.find("init_pos") != std::string::npos && get_init_pos)
 		{
 			// Get the value of the constant
 			std::string value = line.substr(line.find('=') + 1);
@@ -227,6 +227,8 @@ void parse_constants(std::string filename, Constants &constants)
 			}
 		}
 	}
+	// Close the file
+	file.close();
 }
 
 void gen_random_points(Constants &constants)

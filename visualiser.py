@@ -14,7 +14,7 @@ TEMP_DIR = "temp_pngs"
 
 
 
-def run_command(command: str, use_shell = False, ignore_error = False) -> tuple[str, str]:
+def run_command(command: str, use_shell = False, ignore_error = False):
 	"""
 	Runs a command and returns the output and error
 	"""
@@ -64,6 +64,8 @@ num_frames = num_steps // write_interval
 
 # Read all the data
 data = numpy.fromfile(input_file, dtype=numpy.float64)
+print(data)
+print(len(data))
 
 # Find the centre of mass of the entire simulation (every particle at every step)
 centre_of_mass_x = 0
@@ -142,10 +144,12 @@ for frame in range(num_frames):
 # Turn images into mp4
 # run_command(f"ffmpeg -framerate {num_frames / VIDEO_DURATION} -pattern_type glob -i '{DIR_NAME}/{output_filename}_*.png' -c:v libx264 -pix_fmt yuv420p {DIR_NAME}/{output_filename}.mp4", use_shell=True)
 
+# commands.getstatusoutput("ffmpeg -framerate " + str(nFrames / 10) + " -pattern_type glob -i 'output/figures/" + filename + "*.png' -c:v libx264 -pix_fmt yuv420p output/figures/" + filename + ".mp4"
+# print("ffmpeg -framerate " + str(num_frames // VIDEO_DURATION) + " -pattern_type glob -i " + TEMP_DIR + "/*.png -c:v libx264 -pix_fmt yuv420p " + output_filename)
 run_command(f"sh ./shell_scripts/ffmpeg.sh {num_frames // VIDEO_DURATION} {output_filename}", ignore_error=True)
 
 # Remove images
-run_command(f"rm -r {TEMP_DIR}", ignore_error=True)
+# run_command(f"rm -r {TEMP_DIR}", ignore_error=True)
 
 # Close the files
 constants_file.close()

@@ -1,5 +1,5 @@
-num_particles=10000
-num_steps=500
+num_particles=410
+num_steps=200
 write_interval=1
 delta_t=0.1
 softening=0.1

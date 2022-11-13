@@ -21,6 +21,7 @@
 #include <vector>
 #include <math.h>
 #include <limits>
+#include <chrono>
 
 #include "bh_tree.h"
 

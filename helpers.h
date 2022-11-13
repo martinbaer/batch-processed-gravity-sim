@@ -26,7 +26,7 @@ typedef struct Constants {
 } Constants;
 
 
-void parse_constants(std::string filename, Constants &constants);
+void parse_constants(std::string filename, Constants &constants, bool get_init_pos = true);
 
 void write_positions(std::ofstream &output_file, ArrayVector2D pos, Constants constants);
 

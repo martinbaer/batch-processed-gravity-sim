@@ -38,8 +38,10 @@ void print_tree(int depth, BHTree tree, unsigned int node_index);
 
 void log_tree_size(BHTree bh_tree, Constants constants);
 
-inline void reallocate_tree(BHTree &tree);
+void reallocate_tree(BHTree &tree);
 
 void zero_node(BHTree &bh_tree, unsigned int node_index);
+
+void merge_trees(BHTree &dst_tree, Node* src_tree_nodes, unsigned short dst_node_index, unsigned short src_node_index);
 
 #endif

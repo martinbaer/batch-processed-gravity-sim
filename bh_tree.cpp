@@ -13,8 +13,8 @@
 #include <fstream>
 #include <string>
 #include <random>
+#include <chrono>
 
-#include "helpers.h"
 #include "bh_tree.h"
 
 #define TREE_SIZE_LOG_FILENAME "output/tree_size_log.txt"
@@ -27,7 +27,7 @@ bool tree_size_log_open = false;
 
 // increase the size of the nodes array in the BHTree by a factor of REALLOCATE_FACTOR
 // This could be more efficient though it will only occur a few times
-inline void reallocate_tree(BHTree &tree)
+void reallocate_tree(BHTree &tree)
 {
 	Node* nodes = new Node[tree.max_nodes];
 	for (int i = 0; i < tree.num_nodes; i++)
@@ -355,63 +355,91 @@ void bh_tree_insert(double x, double y, BHTree &tree, NodeDescriber node_desc)
 	}
 }
 
-// // Merge two trees based on the centre of mass of the nodes
-// void merge_trees(std::vector<Node> &dst_tree, std::vector<Node> src_tree, unsigned short dst_node_index, unsigned short src_node_index)
-// {
-// 	Node dst_node = dst_tree[dst_node_index];
-// 	Node src_node = src_tree[src_node_index];
-// 	// Average the centre of mass of the two nodes
-// 	dst_tree[dst_node_index].centre_of_mass_x = (dst_node.centre_of_mass_x * dst_node.mass + src_node.centre_of_mass_x * src_node.mass) / (dst_node.mass + src_node.mass);
-// 	dst_tree[dst_node_index].centre_of_mass_y = (dst_node.centre_of_mass_y * dst_node.mass + src_node.centre_of_mass_y * src_node.mass) / (dst_node.mass + src_node.mass);
-// 	// Add the mass of the two nodes
-// 	dst_tree[dst_node_index].mass += src_node.mass;
-// 	// Merge the src node's children with the dst node's children
-// 	if (src_node.top_left)
-// 	{
-// 		// Create the top left child
-// 		if (!dst_node.top_left)
-// 		{
-// 			// Create the top left child
-// 			dst_tree[dst_node_index].top_left = dst_tree.size();
-// 			dst_tree.push_back(Node());
-// 		}
-// 		// Merge the top left child
-// 		merge_trees(dst_tree, src_tree, dst_tree[dst_node_index].top_left, src_node.top_left);
-// 	}
-// 	if (src_node.top_right)
-// 	{
-// 		// Create the top right child
-// 		if (!dst_node.top_right)
-// 		{
-// 			// Create the top right child
-// 			dst_tree[dst_node_index].top_right = dst_tree.size();
-// 			dst_tree.push_back(Node());
-// 		}
-// 		// Merge the top right child
-// 		merge_trees(dst_tree, src_tree, dst_tree[dst_node_index].top_right, src_node.top_right);
-// 	}
-// 	if (src_node.bottom_left)
-// 	{
-// 		// Create the bottom left child
-// 		if (!dst_node.bottom_left)
-// 		{
-// 			// Create the bottom left child
-// 			dst_tree[dst_node_index].bottom_left = dst_tree.size();
-// 			dst_tree.push_back(Node());
-// 		}
-// 		// Merge the bottom left child
-// 		merge_trees(dst_tree, src_tree, dst_tree[dst_node_index].bottom_left, src_node.bottom_left);
-// 	}
-// 	if (src_node.bottom_right)
-// 	{
-// 		// Create the bottom right child
-// 		if (!dst_node.bottom_right)
-// 		{
-// 			// Create the bottom right child
-// 			dst_tree[dst_node_index].bottom_right = dst_tree.size();
-// 			dst_tree.push_back(Node());
-// 		}
-// 		// Merge the bottom right child
-// 		merge_trees(dst_tree, src_tree, dst_tree[dst_node_index].bottom_right, src_node.bottom_right);
-// 	}
-// }
+// Merge two trees based on the centre of mass of the nodes
+void merge_trees(BHTree &dst_tree, Node* src_tree_nodes, unsigned short dst_node_index, unsigned short src_node_index)
+{
+	// Average the centre of mass of the two nodes (a lot of accesses here but compiler optimises it)
+	dst_tree.nodes[dst_node_index].centre_of_mass_x = (dst_tree.nodes[dst_node_index].centre_of_mass_x * dst_tree.nodes[dst_node_index].mass 
+		+ src_tree_nodes[src_node_index].centre_of_mass_x * src_tree_nodes[src_node_index].mass) 
+		/ (dst_tree.nodes[dst_node_index].mass + src_tree_nodes[src_node_index].mass);
+	dst_tree.nodes[dst_node_index].centre_of_mass_y = (dst_tree.nodes[dst_node_index].centre_of_mass_y * dst_tree.nodes[dst_node_index].mass 
+		+ src_tree_nodes[src_node_index].centre_of_mass_y * src_tree_nodes[src_node_index].mass)
+		 / (dst_tree.nodes[dst_node_index].mass + src_tree_nodes[src_node_index].mass);
+	// Add the mass of the src node to the dest node
+	dst_tree.nodes[dst_node_index].mass += src_tree_nodes[src_node_index].mass;
+
+	// Merge the src node's children with the dst node's children
+
+	// Check if the src node has a top left child
+	if (src_tree_nodes[src_node_index].top_left)
+	{
+		// Check if the dest node has a top left child
+		if (!dst_tree.nodes[dst_node_index].top_left)
+		{
+			// Create the dest node's top left child
+			// Get the next available index
+			dst_tree.nodes[dst_node_index].top_left = dst_tree.num_nodes++;
+			// Reallocate the tree to fit the new node
+			if (dst_tree.num_nodes > dst_tree.max_nodes)
+				reallocate_tree(dst_tree);
+			// Initialise the child node
+			zero_node(dst_tree, dst_tree.nodes[dst_node_index].top_left);
+		}
+		// Merge the top left child
+		merge_trees(dst_tree, src_tree_nodes, dst_tree.nodes[dst_node_index].top_left, src_tree_nodes[src_node_index].top_left);
+	}
+	// Check if the src node has a top right child
+	if (src_tree_nodes[src_node_index].top_right)
+	{
+		// Check if the dest node has a top right child
+		if (!dst_tree.nodes[dst_node_index].top_right)
+		{
+			// Create the dest node's top right child
+			// Get the next available index
+			dst_tree.nodes[dst_node_index].top_right = dst_tree.num_nodes++;
+			// Reallocate the tree to fit the new node
+			if (dst_tree.num_nodes > dst_tree.max_nodes)
+				reallocate_tree(dst_tree);
+			// Initialise the child node
+			zero_node(dst_tree, dst_tree.nodes[dst_node_index].top_right);
+		}
+		// Merge the top right child
+		merge_trees(dst_tree, src_tree_nodes, dst_tree.nodes[dst_node_index].top_right, src_tree_nodes[src_node_index].top_right);
+	}
+	// Check if the src node has a bottom left child
+	if (src_tree_nodes[src_node_index].bottom_left)
+	{
+		// Check if the dest node has a bottom left child
+		if (!dst_tree.nodes[dst_node_index].bottom_left)
+		{
+			// Create the dest node's bottom left child
+			// Get the next available index
+			dst_tree.nodes[dst_node_index].bottom_left = dst_tree.num_nodes++;
+			// Reallocate the tree to fit the new node
+			if (dst_tree.num_nodes > dst_tree.max_nodes)
+				reallocate_tree(dst_tree);
+			// Initialise the child node
+			zero_node(dst_tree, dst_tree.nodes[dst_node_index].bottom_left);
+		}
+		// Merge the bottom left child
+		merge_trees(dst_tree, src_tree_nodes, dst_tree.nodes[dst_node_index].bottom_left, src_tree_nodes[src_node_index].bottom_left);
+	}
+	// Check if the src node has a bottom right child
+	if (src_tree_nodes[src_node_index].bottom_right)
+	{
+		// Check if the dest node has a bottom right child
+		if (!dst_tree.nodes[dst_node_index].bottom_right)
+		{
+			// Create the dest node's bottom right child
+			// Get the next available index
+			dst_tree.nodes[dst_node_index].bottom_right = dst_tree.num_nodes++;
+			// Reallocate the tree to fit the new node
+			if (dst_tree.num_nodes > dst_tree.max_nodes)
+				reallocate_tree(dst_tree);
+			// Initialise the child node
+			zero_node(dst_tree, dst_tree.nodes[dst_node_index].bottom_right);
+		}
+		// Merge the bottom right child
+		merge_trees(dst_tree, src_tree_nodes, dst_tree.nodes[dst_node_index].bottom_right, src_tree_nodes[src_node_index].bottom_right);
+	}
+}

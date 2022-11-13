@@ -1,0 +1,2 @@
+gnu(3):ERROR:105: Unable to locate a modulefile for 'gnu/10.2.1'
+/var/spool/slurmd/job14139519/slurm_script: line 18: 22852 Aborted                 ./bh_cuda input/constants.txt &>stdouterr_cuda.txt

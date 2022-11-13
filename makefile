@@ -1,11 +1,11 @@
 MPICXX?=mpic++
 CXX?=g++
-CXXFLAGS?=-std=c++11 -O2 -g
+CXXFLAGS?=-std=c++11 -O2
 # -g is for debugging
 NVCC?=nvcc
 NVFLAGS?=-O2 --gpu-architecture=sm_35 -Wno-deprecated-gpu-targets
 
-TARGETS = pp_serial bh_serial
+TARGETS = pp_serial bh_serial bh_mpi test_mpi
 
 default: 
 	./shell_scripts/unhide_objects.sh
@@ -20,17 +20,23 @@ helpers.o: helpers.h
 bh_tree.o: bh_tree.h helpers.h
 
 # wildcard rules
+%_mpi.o : %_mpi.cpp
+	$(MPICXX) $(CXXFLAGS) $(CFLAGS_$(basename $<)) -c $< -o $@
+
+%_mpi : %_mpi.cpp
+	$(MPICXX) $(CXXFLAGS) $(filter %.o %.cpp, $^) -o $@
+
+%.o: %.cu
+	$(NVCC) $(NVFLAGS) $(NVFLAGS_$(basename $<)) -c $< -o $@
+
+%: %.cu
+	$(NVCC) $(NVFLAGS) $(filter %.o %.cu, $^) $(LDFLAGS) -o $@
+
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(CFLAGS_$(basename $<)) -c $< -o $@
 
 %: %.cpp
 	$(CXX) $(CXXFLAGS) $(filter %.o %.cpp, $^) -o $@
-
-%.o: %.cu
-	$(NVCC) $(NVFLAGS) -c $< -o $@
-
-%: %.cu
- 	$(NVCC) $(NVFLAGS) $(filter %.o %.cu, $^) -o $@
 
 # rules
 all: $(TARGETS)
