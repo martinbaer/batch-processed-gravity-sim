@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
 
 	// All processes parse the constants file
 	Constants constants;
-	parse_constants(argv[1], constants, my_rank == ROOT);
+	parse_constants(argv[1], constants, my_rank == ROOT, 0);
 
 	// Open the output file
 	MPI_File output_file;

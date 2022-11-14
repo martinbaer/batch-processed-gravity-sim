@@ -1,9 +1,11 @@
-num_particles=10000
-num_steps=2000
+num_particles=2000
+num_steps=500
 write_interval=1
 delta_t=0.1
-softening=0.01
+softening=0.1
 gravity=1
 init_pos=random
-check_energy_conservation=false
-output_filename=output/test2.bin
+theta=0.9
+log_energy_conservation=true
+log_tree_size=false
+output_filename=output/test.bin

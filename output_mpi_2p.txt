@@ -1,0 +1,57 @@
+--------------------------------------------------------------------------
+[[23020,1],0]: A high-performance Open MPI point-to-point messaging module
+was unable to find any relevant network interfaces:
+
+Module: OpenFabrics (openib)
+  Host: smp-9-20
+
+Another transport will be used instead, although this may result in
+lower performance.
+
+NOTE: You can disable this warning by setting the MCA parameter
+btl_base_warn_component_unused to 0.
+--------------------------------------------------------------------------
+[smp-9-20.local:02123] 1 more process has sent help message help-mpi-btl-base.txt / btl:no-nics
+[smp-9-20.local:02123] Set MCA parameter "orte_base_help_aggregate" to 0 to see all help / error messages
+[smp-9-20:02132] *** Process received signal ***
+[smp-9-20:02132] Signal: Segmentation fault (11)
+[smp-9-20:02132] Signal code: Address not mapped (1)
+[smp-9-20:02132] Failing at address: 0x2b1bbf8d3000
+[smp-9-20:02132] [ 0] /usr/lib64/libpthread.so.0(+0xf630)[0x2b1bb94ce630]
+[smp-9-20:02132] [ 1] /usr/lib64/libc.so.6(+0x156738)[0x2b1bb9831738]
+[smp-9-20:02132] [ 2] ./benchmarking_bh_mpi[0x4077e7]
+[smp-9-20:02132] [ 3] ./benchmarking_bh_mpi[0x408a68]
+[smp-9-20:02132] [ 4] ./benchmarking_bh_mpi[0x408886]
+[smp-9-20:02132] [ 5] ./benchmarking_bh_mpi[0x408886]
+[smp-9-20:02132] [ 6] ./benchmarking_bh_mpi[0x408830]
+[smp-9-20:02132] [ 7] ./benchmarking_bh_mpi[0x408830]
+[smp-9-20:02132] [ 8] ./benchmarking_bh_mpi[0x408886]
+[smp-9-20:02132] [ 9] ./benchmarking_bh_mpi[0x40885b]
+[smp-9-20:02132] [10] ./benchmarking_bh_mpi[0x408830]
+[smp-9-20:02132] [11] ./benchmarking_bh_mpi[0x40885b]
+[smp-9-20:02132] [12] ./benchmarking_bh_mpi[0x40885b]
+[smp-9-20:02132] [13] ./benchmarking_bh_mpi[0x408886]
+[smp-9-20:02132] [14] ./benchmarking_bh_mpi[0x408830]
+[smp-9-20:02132] [15] ./benchmarking_bh_mpi[0x408830]
+[smp-9-20:02132] [16] ./benchmarking_bh_mpi[0x408830]
+[smp-9-20:02132] [17] ./benchmarking_bh_mpi[0x408886]
+[smp-9-20:02132] [18] ./benchmarking_bh_mpi[0x40885b]
+[smp-9-20:02132] [19] ./benchmarking_bh_mpi[0x408830]
+[smp-9-20:02132] [20] ./benchmarking_bh_mpi[0x40885b]
+[smp-9-20:02132] [21] ./benchmarking_bh_mpi[0x40885b]
+[smp-9-20:02132] [22] ./benchmarking_bh_mpi[0x408886]
+[smp-9-20:02132] [23] ./benchmarking_bh_mpi[0x408830]
+[smp-9-20:02132] [24] ./benchmarking_bh_mpi[0x408830]
+[smp-9-20:02132] [25] ./benchmarking_bh_mpi[0x408830]
+[smp-9-20:02132] [26] ./benchmarking_bh_mpi[0x408886]
+[smp-9-20:02132] [27] ./benchmarking_bh_mpi[0x40885b]
+[smp-9-20:02132] [28] ./benchmarking_bh_mpi[0x408830]
+[smp-9-20:02132] [29] ./benchmarking_bh_mpi[0x40885b]
+[smp-9-20:02132] *** End of error message ***
+-------------------------------------------------------
+Primary job  terminated normally, but 1 process returned
+a non-zero exit code. Per user-direction, the job has been aborted.
+-------------------------------------------------------
+--------------------------------------------------------------------------
+mpiexec noticed that process rank 0 with PID 2132 on node smp-9-20 exited on signal 11 (Segmentation fault).
+--------------------------------------------------------------------------

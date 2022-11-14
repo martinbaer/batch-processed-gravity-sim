@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 	}
 	// Parse the constants file
 	Constants constants;
-	parse_constants(argv[1], constants);
+	parse_constants(argv[1], constants, true, 0);
 	// Initialise the output file
 	std::ofstream output_file(constants.output_filename);
 	// Check if the file opened

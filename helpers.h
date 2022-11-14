@@ -25,8 +25,7 @@ typedef struct Constants {
 	double theta; // Used in Barnes-Hut algorithm
 } Constants;
 
-
-void parse_constants(std::string filename, Constants &constants, bool get_init_pos = true);
+void parse_constants(std::string filename, Constants &constants, bool get_init_pos, int set_num_particles);
 
 void write_positions(std::ofstream &output_file, ArrayVector2D pos, Constants constants);
 
