@@ -4,9 +4,9 @@
  * @brief Contains globally useful functions for the simulations
  * @version 0.1
  * @date 2022-11-01
- * 
+ *
  * @copyright Copyright (c) 2022
- * 
+ *
  */
 
 #include <iostream>
@@ -21,7 +21,6 @@
 
 #define REALLOCATE_FACTOR 1.2
 
-
 std::ofstream tree_size_log(TREE_SIZE_LOG_FILENAME);
 bool tree_size_log_open = false;
 
@@ -29,7 +28,7 @@ bool tree_size_log_open = false;
 // This could be more efficient though it will only occur a few times
 void reallocate_tree(BHTree &tree)
 {
-	Node* nodes = new Node[tree.max_nodes];
+	Node *nodes = new Node[tree.max_nodes];
 	for (int i = 0; i < tree.num_nodes; i++)
 	{
 		nodes[i] = tree.nodes[i];
@@ -43,14 +42,13 @@ void reallocate_tree(BHTree &tree)
 	}
 }
 
-
 /**
- * @brief 
- * 
- * @param root 
- * @param acc_x 
- * @param acc_x 
- * @param x 
+ * @brief
+ *
+ * @param root
+ * @param acc_x
+ * @param acc_x
+ * @param x
  * @param y
  */
 void add_node_acceleration(double &acc_x, double &acc_y, double x, double y, unsigned int node_index, double s, BHTree bh_tree, Constants constants)
@@ -92,9 +90,6 @@ void add_node_acceleration(double &acc_x, double &acc_y, double x, double y, uns
 		}
 	}
 }
-
-
-
 
 // find the maximum height of the tree using recursion
 int tree_height(BHTree bh_tree, unsigned int node_index)
@@ -175,7 +170,6 @@ void print_tree(int depth, BHTree tree, unsigned int node_index)
 		print_tree(depth + 1, tree, node.bottom_right);
 }
 
-
 void zero_node(BHTree &bh_tree, unsigned int node_index)
 {
 	bh_tree.nodes[node_index].mass = 0;
@@ -188,10 +182,10 @@ void zero_node(BHTree &bh_tree, unsigned int node_index)
 }
 
 /**
- * @brief 
+ * @brief
  * Return the index quadrant that the particle is in given the parent node.
  * Also creates the child node and adds it to the tree if it doesn't exist.
- * 
+ *
  * @param x The x position of the particle
  * @param y The y position of the particle
  * @param node_index The index of the parent node
@@ -311,7 +305,7 @@ NodeDescriber get_child(double x, double y, BHTree &tree, NodeDescriber parent_n
 }
 
 /**
- * @brief 
+ * @brief
  * Recursively add a particle to the Barnes-Hutt tree, using the following steps
  * If node x does not contain a body, put the new body here.
  * If node x is an internal node, update the COM and mass of the node
@@ -356,15 +350,11 @@ void bh_tree_insert(double x, double y, BHTree &tree, NodeDescriber node_desc)
 }
 
 // Merge two trees based on the centre of mass of the nodes
-void merge_trees(BHTree &dst_tree, Node* src_tree_nodes, unsigned short dst_node_index, unsigned short src_node_index)
+void merge_trees(BHTree &dst_tree, Node *src_tree_nodes, unsigned short dst_node_index, unsigned short src_node_index)
 {
 	// Average the centre of mass of the two nodes (a lot of accesses here but compiler optimises it)
-	dst_tree.nodes[dst_node_index].centre_of_mass_x = (dst_tree.nodes[dst_node_index].centre_of_mass_x * dst_tree.nodes[dst_node_index].mass 
-		+ src_tree_nodes[src_node_index].centre_of_mass_x * src_tree_nodes[src_node_index].mass) 
-		/ (dst_tree.nodes[dst_node_index].mass + src_tree_nodes[src_node_index].mass);
-	dst_tree.nodes[dst_node_index].centre_of_mass_y = (dst_tree.nodes[dst_node_index].centre_of_mass_y * dst_tree.nodes[dst_node_index].mass 
-		+ src_tree_nodes[src_node_index].centre_of_mass_y * src_tree_nodes[src_node_index].mass)
-		 / (dst_tree.nodes[dst_node_index].mass + src_tree_nodes[src_node_index].mass);
+	dst_tree.nodes[dst_node_index].centre_of_mass_x = (dst_tree.nodes[dst_node_index].centre_of_mass_x * dst_tree.nodes[dst_node_index].mass + src_tree_nodes[src_node_index].centre_of_mass_x * src_tree_nodes[src_node_index].mass) / (dst_tree.nodes[dst_node_index].mass + src_tree_nodes[src_node_index].mass);
+	dst_tree.nodes[dst_node_index].centre_of_mass_y = (dst_tree.nodes[dst_node_index].centre_of_mass_y * dst_tree.nodes[dst_node_index].mass + src_tree_nodes[src_node_index].centre_of_mass_y * src_tree_nodes[src_node_index].mass) / (dst_tree.nodes[dst_node_index].mass + src_tree_nodes[src_node_index].mass);
 	// Add the mass of the src node to the dest node
 	dst_tree.nodes[dst_node_index].mass += src_tree_nodes[src_node_index].mass;
 
