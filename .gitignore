@@ -1,1 +1,11 @@
 output/*
+*.o
+benchmarking_bh_mpi.dSYM
+bh_mpi.dSYM
+bh_mpi
+benchmarking_bh_mpi
+benchmarking_bh_serial
+bh_mpi
+bh_serial
+pp_serial
+benchmarking_bh_serial.csv

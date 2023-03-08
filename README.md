@@ -4,6 +4,21 @@ This project began as an assignment for "High-Performance Computing", one of my 
 
 The algorithm I sought to optimize was the Barnes-Hut N-body simulation.
 
+## How to use
+
+### Dependencies
+
+- g++: for compiling C++ 
+- mpih: for compiling C++ with MPI using mpic++
+
+### Building
+
+Run `make` to compile all the binary executables.
+
+### Running
+
+
+
 ## Slurm Scripts
 
 I benchmarked the simulation on UQ's High-Performance Computing cluster. Jobs were run through slurm.

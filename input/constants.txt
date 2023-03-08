@@ -1,4 +1,4 @@
-num_particles=10000
+num_particles=1000
 num_steps=500
 write_interval=1
 delta_t=0.1

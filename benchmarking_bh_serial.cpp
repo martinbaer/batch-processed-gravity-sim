@@ -1,18 +1,18 @@
 /**
  * @file bh_serial.cpp
  * @author Martin Baer
- * @brief 
+ * @brief
  * Particle-particle simulator serial implimentation
- * This code simulates a given particle system for a given number of steps, 
+ * This code simulates a given particle system for a given number of steps,
  * saving the particle positions of each step to a file.
  * It also prints the time it took to run the simulation.
- * 
+ *
  * Barnes-Hut simulator serial implimentation
  * @version 0.1
  * @date 2022-11-01
- * 
+ *
  * @copyright Copyright (c) 2022
- * 
+ *
  */
 
 #include <iostream>
@@ -28,33 +28,37 @@
 #define USAGE "Usage: ./bh_serial [constants file]"
 #define NUM_ARGS 2
 
-#define STARTING_PROBLEM_SIZE 1<<7
-#define D_PROBLEM_SIZE 1<<7
-#define N_TRIALS 1 // this can be 1 as number of steps is high
-#define TIME_LIMIT_MS 600000 //10 mins
+#define STARTING_PROBLEM_SIZE 1 << 7
+#define D_PROBLEM_SIZE 1 << 7
+#define N_TRIALS 1			 // this can be 1 as number of steps is high
+#define TIME_LIMIT_MS 600000 // 10 mins
 #define BENCHMARKING_OUTPUT_FILE "benchmarking_bh_serial.csv"
 
-template <class T> 
-T avg(std::vector<T> arr) {
-    T sum = 0;
-    for (int i = 0; i < arr.size(); i++) {
-        sum += arr[i];
-    }
-    return sum / arr.size();
+template <class T>
+T avg(std::vector<T> arr)
+{
+	T sum = 0;
+	for (int i = 0; i < arr.size(); i++)
+	{
+		sum += arr[i];
+	}
+	return sum / arr.size();
 }
 
 template <class T>
-T sum(std::vector<T> arr) {
+T sum(std::vector<T> arr)
+{
 	T sum = 0;
-	for (int i = 0; i < arr.size(); i++) {
+	for (int i = 0; i < arr.size(); i++)
+	{
 		sum += arr[i];
 	}
 	return sum;
 }
 
 /**
- * @brief 
- * Simulates a particle system under the given constants 
+ * @brief
+ * Simulates a particle system under the given constants
  * and saves the particle positions to a binary file.
  */
 int main(int argc, char *argv[])
@@ -72,7 +76,6 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-
 	/* BENCHMARKING LOOP */
 	for (int problem_size = STARTING_PROBLEM_SIZE; std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count() < TIME_LIMIT_MS; problem_size += D_PROBLEM_SIZE)
 	{
@@ -83,7 +86,6 @@ int main(int argc, char *argv[])
 		std::vector<int> acceleration_calc_times_trial;
 		std::vector<int> ingeration_times_trial;
 
-		
 		for (int trial = 0; trial < N_TRIALS; trial++)
 		{
 			auto start_trial = std::chrono::high_resolution_clock::now();
@@ -129,7 +131,6 @@ int main(int argc, char *argv[])
 			delete[] constants.init_pos.x;
 			delete[] constants.init_pos.y;
 
-
 			std::vector<int> write_times_inner;
 			std::vector<int> tree_construction_times_inner;
 			std::vector<int> acceleration_calc_times_inner;
@@ -146,9 +147,8 @@ int main(int argc, char *argv[])
 				auto finish_write = std::chrono::high_resolution_clock::now();
 				write_times_inner.push_back(std::chrono::duration_cast<std::chrono::milliseconds>(finish_write - start_inner).count());
 
-
 				// Check the energy conservation
-				if (constants.log_energy_conservation) 
+				if (constants.log_energy_conservation)
 					log_energy_conservation(pos, vel, constants);
 
 				// Calculate the bounds of the simulation : TODO AVX using _mm256_cmp_pd (and MPI)

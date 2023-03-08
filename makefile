@@ -5,7 +5,7 @@ CXXFLAGS?=-std=c++11 -O2
 NVCC?=nvcc
 NVFLAGS?=-O2 --gpu-architecture=sm_35 -Wno-deprecated-gpu-targets
 
-TARGETS = pp_serial bh_serial # bh_mpi test_mpi benchmarking_bh_serial benchmarking_bh_mpi
+TARGETS = pp_serial bh_serial bh_mpi test_mpi benchmarking_bh_serial benchmarking_bh_mpi
 
 default: 
 	make all
